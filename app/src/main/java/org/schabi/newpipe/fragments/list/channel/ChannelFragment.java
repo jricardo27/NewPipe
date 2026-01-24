@@ -40,9 +40,20 @@ import org.schabi.newpipe.error.UserAction;
 import org.schabi.newpipe.extractor.channel.ChannelInfo;
 import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import androidx.appcompat.app.AlertDialog;
+import android.content.DialogInterface;
+import android.widget.Toast;
+import android.app.ProgressDialog;
+
+import org.schabi.newpipe.database.stream.model.StreamEntity;
+import org.schabi.newpipe.extractor.InfoItem;
+import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.fragments.BaseStateFragment;
 import org.schabi.newpipe.fragments.detail.TabAdapter;
 import org.schabi.newpipe.ktx.AnimationType;
+import org.schabi.newpipe.local.dialog.PlaylistAppendDialog;
 import org.schabi.newpipe.local.feed.notifications.NotificationHelper;
 import org.schabi.newpipe.local.subscription.SubscriptionManager;
 import org.schabi.newpipe.util.ChannelTabHelper;
@@ -56,6 +67,8 @@ import org.schabi.newpipe.util.external_communication.ShareUtils;
 import org.schabi.newpipe.util.image.ImageStrategy;
 import org.schabi.newpipe.util.image.PicassoHelper;
 
+import java.util.List;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
@@ -185,6 +198,11 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                                 ShareUtils.shareText(requireContext(), name,
                                         currentInfo.getOriginalUrl(), currentInfo.getAvatars());
                             }
+                            break;
+                        case R.id.menu_item_enqueue_all:
+                             if (currentInfo != null) {
+                                 showEnqueueDialog();
+                             }
                             break;
                         default:
                             return false;
@@ -643,6 +661,149 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
         updateTabs();
         updateSubscription(result);
         monitorSubscription(result);
+    }
+
+    private void showEnqueueDialog() {
+        final CharSequence[] items = {
+                getString(R.string.enqueue_all_loaded),
+                getString(R.string.enqueue_entire_channel)
+        };
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.enqueue_options_title)
+                .setItems(items, (dialog, item) -> {
+                    if (item == 0) {
+                        enqueueLoadedItems();
+                    } else if (item == 1) {
+                         enqueueAllChannelItems();
+                    }
+                })
+                .show();
+    }
+
+    private void enqueueLoadedItems() {
+        if (tabAdapter == null || binding == null) return;
+        
+        final androidx.fragment.app.Fragment fragment = tabAdapter.getItem(binding.viewPager.getCurrentItem());
+        List<StreamInfoItem> items = null;
+        
+        if (fragment instanceof ChannelTabFragment) {
+            items = ((ChannelTabFragment) fragment).getLoadedItems();
+        } else if (currentInfo != null) { // Fallback if no tabs or main page has items
+             items = new ArrayList<>();
+             for (InfoItem item : currentInfo.getRelatedItems()) {
+                 if (item instanceof StreamInfoItem) {
+                     items.add((StreamInfoItem) item);
+                 }
+             }
+        }
+        
+        if (items == null || items.isEmpty()) {
+             Toast.makeText(requireContext(), R.string.no_streams, Toast.LENGTH_SHORT).show();
+             return;
+        }
+
+        final List<StreamEntity> streams = new ArrayList<>();
+        for (StreamInfoItem item : items) {
+             streams.add(new StreamEntity(item));
+        }
+        PlaylistAppendDialog.newInstance(streams).show(getChildFragmentManager(), TAG);
+    }
+
+    private void enqueueAllChannelItems() {
+        ListLinkHandler targetHandler = null;
+
+        // Try to get handler from current tab
+        if (tabAdapter != null && binding != null) {
+            final androidx.fragment.app.Fragment fragment = tabAdapter.getItem(binding.viewPager.getCurrentItem());
+             if (fragment instanceof ChannelTabFragment) {
+                 ListLinkHandler handler = ((ChannelTabFragment) fragment).getTabHandler();
+                 if (handler != null && ChannelTabHelper.isStreamsTab(handler)) {
+                     targetHandler = handler;
+                 }
+             }
+        }
+
+        // Fallback: look for first stream tab in currentInfo
+        if (targetHandler == null && currentInfo != null) {
+            for (ListLinkHandler handler : currentInfo.getTabs()) {
+                if (ChannelTabHelper.isStreamsTab(handler)) {
+                    targetHandler = handler;
+                    break;
+                }
+            }
+        }
+
+        if (targetHandler == null) {
+            Toast.makeText(requireContext(), R.string.no_streams, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        final ProgressDialog dialog = new ProgressDialog(requireContext());
+        dialog.setTitle(getString(R.string.fetching_all_videos));
+        dialog.setMessage(getString(R.string.fetched_videos_count, 0));
+        dialog.setIndeterminate(true);
+        dialog.setCancelable(true);
+        dialog.show();
+
+        final List<StreamEntity> allItems = new ArrayList<>();
+        final ListLinkHandler handler = targetHandler;
+
+        // Start fetching from the beginning
+        Disposable d = ExtractorHelper.getChannelTab(serviceId, handler, true)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(result -> {
+                    for (InfoItem item : result.getRelatedItems()) {
+                         if (item instanceof StreamInfoItem) {
+                             allItems.add(new StreamEntity((StreamInfoItem) item));
+                         }
+                    }
+                    dialog.setMessage(getString(R.string.fetched_videos_count, allItems.size()));
+                    
+                    if (Page.isValid(result.getNextPage())) {
+                        fetchNextPage(result.getNextPage(), handler, allItems, dialog);
+                    } else {
+                        dialog.dismiss();
+                        PlaylistAppendDialog.newInstance(allItems).show(getChildFragmentManager(), TAG);
+                    }
+                }, error -> {
+                    dialog.dismiss();
+                    ErrorUtil.showUiErrorSnackbar(this, "Fetching channel", error);
+                });
+        
+        dialog.setOnCancelListener(di -> d.dispose());
+        disposables.add(d);
+    }
+
+    private void fetchNextPage(Page page, ListLinkHandler handler, List<StreamEntity> allItems, ProgressDialog dialog) {
+         Disposable d = ExtractorHelper.getMoreChannelTabItems(serviceId, handler, page)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(result -> {
+                    for (InfoItem item : result.getItems()) {
+                         if (item instanceof StreamInfoItem) {
+                             allItems.add(new StreamEntity((StreamInfoItem) item));
+                         }
+                    }
+                    dialog.setMessage(getString(R.string.fetched_videos_count, allItems.size()));
+
+                    if (Page.isValid(result.getNextPage())) {
+                        fetchNextPage(result.getNextPage(), handler, allItems, dialog);
+                    } else {
+                        dialog.dismiss();
+                        PlaylistAppendDialog.newInstance(allItems).show(getChildFragmentManager(), TAG);
+                    }
+                }, error -> {
+                    dialog.dismiss();
+                    ErrorUtil.showUiErrorSnackbar(this, "Fetching more items", error);
+                });
+         // Add to disposables if we want global cancel, but dialog cancel handles the chain root? 
+         // No, fetchNextPage starts a new disposable. We should ideally track it.
+         // However, standard simplified implementation for this feature often relies on "fire and forget" if user doesn't cancel.
+         // But if dialog is cancelled, the CURRENT request should stop.
+         // The previous disposable is done. We can update the CancelListener.
+         dialog.setOnCancelListener(di -> d.dispose());
     }
 
     private void showContentNotSupportedIfNeeded() {

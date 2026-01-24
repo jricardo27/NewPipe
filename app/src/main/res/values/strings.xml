@@ -882,4 +882,18 @@
     <string name="youtube_player_http_403">HTTP error 403 received from server while playing, likely caused by an IP ban or streaming URL deobfuscation issues</string>
     <string name="sign_in_confirm_not_bot_error">%1$s refused to provide data, asking for a login to confirm the requester is not a bot.\n\nYour IP might have been temporarily banned by %1$s, you can wait some time or switch to a different IP (for example by turning on/off a VPN, or by switching from WiFi to mobile data).</string>
     <string name="unsupported_content_in_country">This content is not available for the currently selected content country.\n\nChange your selection from \"Settings > Content > Default content country\".</string>
+    <string name="enqueue_all">Enqueue all</string>
+    <string name="sort_playlist">Sort</string>
+    <string name="sort_by_title">Title</string>
+    <string name="sort_by_date_newest">Date (Newest)</string>
+    <string name="sort_by_date_oldest">Date (Oldest)</string>
+    <string name="sort_by_date_added_newest">Date Added (Newest)</string>
+    <string name="sort_by_date_added_oldest">Date Added (Oldest)</string>
+    <string name="sort_by_duration_longest">Duration (Longest)</string>
+    <string name="sort_by_duration_shortest">Duration (Shortest)</string>
+    <string name="enqueue_options_title">Enqueue</string>
+    <string name="enqueue_all_loaded">Enqueue loaded videos</string>
+    <string name="enqueue_entire_channel">Enqueue all videos from channel</string>
+    <string name="fetching_all_videos">Fetching all videos...</string>
+    <string name="fetched_videos_count">Fetched %d videos</string>
 </resources>
