@@ -167,4 +167,15 @@ public class ChannelTabFragment extends BaseListInfoFragment<InfoItem, ChannelTa
         return new ChannelTabPlayQueue(currentInfo.getServiceId(), tabHandler,
                 currentInfo.getNextPage(), streamItems, 0);
     }
+    public List<StreamInfoItem> getLoadedItems() {
+        if (infoListAdapter == null) return java.util.Collections.emptyList();
+        return infoListAdapter.getItemsList().stream()
+                .filter(StreamInfoItem.class::isInstance)
+                .map(StreamInfoItem.class::cast)
+                .collect(Collectors.toList());
+    }
+
+    public ListLinkHandler getTabHandler() {
+        return tabHandler;
+    }
 }

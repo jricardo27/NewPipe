@@ -69,7 +69,10 @@ import org.schabi.newpipe.util.external_communication.ShareUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.time.OffsetDateTime;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -375,6 +378,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         } else if (item.getItemId() == R.id.menu_item_remove_duplicates) {
             if (!isRewritingPlaylist) {
                 openRemoveDuplicatesDialog();
+            }
+        } else if (item.getItemId() == R.id.menu_item_sort_playlist) {
+            if (!isRewritingPlaylist) {
+                openSortDialog();
             }
         } else {
             return super.onOptionsItemSelected(item);
@@ -778,6 +785,94 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                                  final int swipeDir) {
             }
         };
+    }
+
+    private void openSortDialog() {
+        final Context context = requireContext();
+        final String[] options = new String[]{
+                context.getString(R.string.sort_by_date_newest),
+                context.getString(R.string.sort_by_date_oldest),
+                context.getString(R.string.sort_by_date_added_newest),
+                context.getString(R.string.sort_by_date_added_oldest),
+                context.getString(R.string.sort_by_title),
+                context.getString(R.string.sort_by_duration_longest),
+                context.getString(R.string.sort_by_duration_shortest)
+        };
+
+        new AlertDialog.Builder(context)
+                .setTitle(R.string.sort_playlist)
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // Date Newest
+                            sortPlaylist((e1, e2) -> compareDates(e2, e1));
+                            break;
+                        case 1: // Date Oldest
+                            sortPlaylist(this::compareDates);
+                            break;
+                        case 2: // Added Newest
+                            sortPlaylist((e1, e2) -> Integer.compare(e2.getJoinIndex(),
+                                    e1.getJoinIndex()));
+                            break;
+                        case 3: // Added Oldest
+                            sortPlaylist(Comparator.comparingInt(PlaylistStreamEntry::getJoinIndex));
+                            break;
+                        case 4: // Title
+                            sortPlaylist((e1, e2) -> e1.getStreamEntity().getTitle()
+                                    .compareToIgnoreCase(e2.getStreamEntity().getTitle()));
+                            break;
+                        case 5: // Duration Longest
+                            sortPlaylist((e1, e2) -> Long.compare(e2.getStreamEntity().getDuration(),
+                                    e1.getStreamEntity().getDuration()));
+                            break;
+                        case 6: // Duration Shortest
+                            sortPlaylist(Comparator.comparingLong(e ->
+                                    e.getStreamEntity().getDuration()));
+                            break;
+                        default:
+                            break;
+                    }
+                })
+                .show();
+    }
+
+    private int compareDates(final PlaylistStreamEntry e1, final PlaylistStreamEntry e2) {
+        final OffsetDateTime d1 = e1.getStreamEntity().getUploadDate();
+        final OffsetDateTime d2 = e2.getStreamEntity().getUploadDate();
+        if (d1 == null && d2 == null) {
+            return 0;
+        }
+        if (d1 == null) {
+            return 1;
+        }
+        if (d2 == null) {
+            return -1;
+        }
+        return d1.compareTo(d2);
+    }
+
+    private void sortPlaylist(final Comparator<PlaylistStreamEntry> comparator) {
+        if (itemListAdapter == null) {
+            return;
+        }
+        final List<LocalItem> items = itemListAdapter.getItemsList();
+        final List<PlaylistStreamEntry> streamEntries = new ArrayList<>();
+        for (final LocalItem item : items) {
+            if (item instanceof PlaylistStreamEntry) {
+                streamEntries.add((PlaylistStreamEntry) item);
+            }
+        }
+        
+        if (streamEntries.isEmpty()) {
+            return;
+        }
+
+        Collections.sort(streamEntries, comparator);
+        
+        itemListAdapter.clearStreamItemList();
+        itemListAdapter.addItems(streamEntries);
+        
+        debounceSaver.setHasChangesToSave();
+        saveImmediate();
     }
 
     /*//////////////////////////////////////////////////////////////////////////
