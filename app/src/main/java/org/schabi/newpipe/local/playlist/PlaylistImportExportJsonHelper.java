@@ -83,6 +83,7 @@ public final class PlaylistImportExportJsonHelper {
                         if (itemObj instanceof JsonObject) {
                             JsonObject item = (JsonObject) itemObj;
                             StreamEntity stream = new StreamEntity(
+                                    0L,
                                     item.getInt(JSON_STREAM_SERVICE_ID_KEY),
                                     item.getString(JSON_STREAM_URL_KEY),
                                     item.getString(JSON_STREAM_TITLE_KEY),
