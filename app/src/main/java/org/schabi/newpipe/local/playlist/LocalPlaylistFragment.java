@@ -944,7 +944,22 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
     @Override
     public PlayQueue getPlayQueue() {
-        return getPlayQueue(0);
+        if (itemListAdapter == null) {
+            return getPlayQueue(0);
+        }
+
+        final List<LocalItem> items = itemListAdapter.getItemsList();
+        int startIndex = 0;
+        for (int i = 0; i < items.size(); i++) {
+            final LocalItem item = items.get(i);
+            if (item instanceof PlaylistStreamEntry) {
+                if (!((PlaylistStreamEntry) item).isFinished()) {
+                    startIndex = i;
+                    break;
+                }
+            }
+        }
+        return getPlayQueue(startIndex);
     }
 
     private PlayQueue getPlayQueue(final int index) {

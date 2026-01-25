@@ -46,4 +46,8 @@ data class PlaylistStreamEntry(
             thumbnails = ImageStrategy.dbUrlToImageList(streamEntity.thumbnailUrl)
         }
     }
+    fun isFinished(): Boolean {
+        return progressMillis >= streamEntity.duration * 1000 - StreamStateEntity.PLAYBACK_FINISHED_END_MILLISECONDS &&
+            progressMillis >= streamEntity.duration * 1000 * 3 / 4
+    }
 }
