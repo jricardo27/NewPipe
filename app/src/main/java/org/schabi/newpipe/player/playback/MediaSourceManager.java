@@ -472,6 +472,13 @@ public class MediaSourceManager {
                 .onErrorReturn(throwable -> {
                     if (throwable instanceof ExtractionException) {
                         if (throwable instanceof ContentNotAvailableException) {
+                            if (stream == playQueue.getItem()) {
+                                final ManagedMediaSource currentSource = playlist.get(playQueue.indexOf(stream));
+                                if (currentSource instanceof FailedMediaSource) {
+                                    AndroidSchedulers.mainThread().scheduleDirect(playQueue::error);
+                                    return FailedMediaSource.of(stream, new Exception(throwable), Long.MAX_VALUE);
+                                }
+                            }
                             return FailedMediaSource.of(stream, new Exception(throwable),
                                     TimeUnit.MILLISECONDS.convert(3, TimeUnit.SECONDS));
                         }
