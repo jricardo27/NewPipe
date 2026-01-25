@@ -896,4 +896,5 @@
     <string name="enqueue_entire_channel">Enqueue all videos from channel</string>
     <string name="fetching_all_videos">Fetching all videos...</string>
     <string name="fetched_videos_count">Fetched %d videos</string>
+    <string name="playlist_add_streams_success_with_name">%1$d videos added to %2$s</string>
 </resources>

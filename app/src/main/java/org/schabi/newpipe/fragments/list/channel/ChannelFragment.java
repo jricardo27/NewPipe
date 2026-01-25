@@ -689,13 +689,6 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
         
         if (fragment instanceof ChannelTabFragment) {
             items = ((ChannelTabFragment) fragment).getLoadedItems();
-        } else if (currentInfo != null) { // Fallback if no tabs or main page has items
-             items = new ArrayList<>();
-             for (InfoItem item : currentInfo.getRelatedItems()) {
-                 if (item instanceof StreamInfoItem) {
-                     items.add((StreamInfoItem) item);
-                 }
-             }
         }
         
         if (items == null || items.isEmpty()) {
