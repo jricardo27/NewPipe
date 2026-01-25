@@ -65,8 +65,11 @@ import org.schabi.newpipe.util.debounce.DebounceSavable;
 import org.schabi.newpipe.util.debounce.DebounceSaver;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import org.schabi.newpipe.local.playlist.PlaylistImportExportJsonHelper;
+
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -123,6 +126,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     // Fragment LifeCycle - Creation
     ///////////////////////////////////////////////////////////////////////////
 
+    private ActivityResultLauncher<String> createDocumentLauncher;
+
     @Override
     public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -145,6 +150,36 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
         isLoadingComplete = new AtomicBoolean();
         debounceSaver = new DebounceSaver(this);
+
+        createDocumentLauncher = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("application/json"),
+                this::exportPlaylistToUri);
+    }
+
+    private void exportPlaylistToUri(final android.net.Uri uri) {
+        if (uri == null) {
+            return;
+        }
+
+        final Context context = requireContext();
+        disposables.add(playlistManager.getPlaylistStreamEntities(playlistId)
+                .firstElement()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(streams -> {
+                    try {
+                        java.io.OutputStream os = context.getContentResolver().openOutputStream(uri);
+                        if (os == null) {
+                            throw new java.io.IOException("Could not open output stream");
+                        }
+                        PlaylistImportExportJsonHelper.PlaylistWithStreams playlist = new PlaylistImportExportJsonHelper.PlaylistWithStreams(
+                                name, streams);
+                        PlaylistImportExportJsonHelper.writeTo(Collections.singletonList(playlist), os, null);
+                        Toast.makeText(context, R.string.export_complete_toast, Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        showUiErrorSnackbar(this, "Exporting playlist", e);
+                    }
+                }, throwable -> showUiErrorSnackbar(this, "Exporting playlist", throwable)));
     }
 
     @Override
@@ -385,6 +420,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             openRemoveDuplicatesDialog();
         } else if (item.getItemId() == R.id.menu_item_sort_playlist) {
             openSortDialog();
+        } else if (item.getItemId() == R.id.menu_item_export_playlist_json) {
+            createDocumentLauncher.launch(name + ".json");
         } else {
             return super.onOptionsItemSelected(item);
         }

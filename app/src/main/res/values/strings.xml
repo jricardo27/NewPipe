@@ -210,6 +210,9 @@
     <string name="switch_to_main">Switch to Main</string>
     <string name="import_data_title">Import database</string>
     <string name="export_data_title">Export database</string>
+    <string name="export_playlist_json">Export to JSON</string>
+    <string name="export_all_playlists_json">Export all playlists to JSON</string>
+    <string name="import_playlists_json">Import playlists from JSON</string>
     <string name="clear_cookie_title">Clear reCAPTCHA cookies</string>
     <string name="recaptcha_cookies_cleared">reCAPTCHA cookies have been cleared</string>
     <string name="import_data_summary">Overrides your current history, subscriptions, playlists and (optionally) settings</string>
