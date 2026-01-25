@@ -147,7 +147,9 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
                                     @NonNull final List<StreamEntity> streams) {
 
         final String toastText;
-        if (playlist.getTimesStreamIsContained() > 0) {
+        if (streams.size() > 1) {
+            toastText = getString(R.string.playlist_add_streams_success_with_name, streams.size(), playlist.getOrderingName());
+        } else if (playlist.getTimesStreamIsContained() > 0) {
             toastText = getString(R.string.playlist_add_stream_success_duplicate,
                     playlist.getTimesStreamIsContained());
         } else {
