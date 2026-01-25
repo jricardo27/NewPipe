@@ -10,6 +10,8 @@ import androidx.room3.withWriteTransaction
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Flowable
 import io.reactivex.rxjava3.core.Maybe
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -118,6 +120,27 @@ class LocalPlaylistManager(private val database: AppDatabase) {
 
     fun getPlaylistStreams(playlistId: Long): Flowable<MutableList<PlaylistStreamEntry>> {
         return playlistStreamTable.getOrderedStreamsOf(playlistId).subscribeOn(Schedulers.io())
+    }
+
+    fun getPlaylistStreamEntities(playlistId: Long): Flowable<List<StreamEntity>> {
+        return playlistStreamTable.getOrderedStreamsOf(playlistId)
+            .map { entries -> entries.map { it.streamEntity } }
+            .subscribeOn(Schedulers.io())
+    }
+
+    fun getAllPlaylistsWithStreams(): Single<List<PlaylistImportExportJsonHelper.PlaylistWithStreams>> {
+        return getPlaylists().firstOrError()
+            .flatMapObservable { Observable.fromIterable(it) }
+            .flatMapSingle { playlist ->
+                getPlaylistStreamEntities(playlist.uid).firstOrError()
+                    .map { streams ->
+                        PlaylistImportExportJsonHelper.PlaylistWithStreams(
+                            playlist.orderingName, streams
+                        )
+                    }
+            }
+            .toList()
+            .map { it.toList() }
     }
 
     fun renamePlaylist(playlistId: Long, name: String): Maybe<Int> {
