@@ -103,9 +103,11 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
     private int lastTab;
     private boolean channelContentNotSupported = false;
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Views
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Views
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     private FragmentChannelBinding binding;
     private TabAdapter tabAdapter;
@@ -116,7 +118,7 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
     private MenuProvider menuProvider;
 
     public static ChannelFragment getInstance(final int serviceId, final String url,
-                                              final String name) {
+            final String name) {
         final ChannelFragment instance = new ChannelFragment();
         instance.setInitialData(serviceId, url, name);
         return instance;
@@ -128,10 +130,11 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
         this.name = !TextUtils.isEmpty(title) ? title : "";
     }
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // LifeCycle
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // LifeCycle
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     public void onAttach(@NonNull final Context context) {
@@ -141,8 +144,8 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
 
     @Override
     public View onCreateView(@NonNull final LayoutInflater inflater,
-                             @Nullable final ViewGroup container,
-                             @Nullable final Bundle savedInstanceState) {
+            @Nullable final ViewGroup container,
+            @Nullable final Bundle savedInstanceState) {
         binding = FragmentChannelBinding.inflate(inflater, container, false);
         return binding.getRoot();
     }
@@ -150,67 +153,67 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
     @Override
     public void onViewCreated(@NonNull final View rootView, final Bundle savedInstanceState) {
         super.onViewCreated(rootView, savedInstanceState);
-            menuProvider = new MenuProvider() {
-                @Override
-                public void onCreateMenu(@NonNull final Menu menu,
-                                         @NonNull final MenuInflater inflater) {
-                    inflater.inflate(R.menu.menu_channel, menu);
+        menuProvider = new MenuProvider() {
+            @Override
+            public void onCreateMenu(@NonNull final Menu menu,
+                    @NonNull final MenuInflater inflater) {
+                inflater.inflate(R.menu.menu_channel, menu);
 
-                    if (DEBUG) {
-                        Log.d(TAG, "onCreateOptionsMenu() called with: "
-                                + "menu = [" + menu + "], inflater = [" + inflater + "]");
-                    }
-
+                if (DEBUG) {
+                    Log.d(TAG, "onCreateOptionsMenu() called with: "
+                            + "menu = [" + menu + "], inflater = [" + inflater + "]");
                 }
 
-                @Override
-                public void onPrepareMenu(@NonNull final Menu menu) {
-                    menuRssButton = menu.findItem(R.id.menu_item_rss);
-                    menuNotifyButton = menu.findItem(R.id.menu_item_notify);
-                    updateRssButton();
-                    updateNotifyButton(channelSubscription);
-                }
+            }
 
-                @Override
-                public boolean onMenuItemSelected(@NonNull final MenuItem item) {
-                    switch (item.getItemId()) {
-                        case R.id.menu_item_notify:
-                            final boolean value = !item.isChecked();
-                            item.setEnabled(false);
-                            setNotify(value);
-                            break;
-                        case R.id.action_settings:
-                            NavigationHelper.openSettings(requireContext());
-                            break;
-                        case R.id.menu_item_rss:
-                            if (currentInfo != null) {
-                                ShareUtils.openUrlInApp(requireContext(), currentInfo.getFeedUrl());
-                            }
-                            break;
-                        case R.id.menu_item_openInBrowser:
-                            if (currentInfo != null) {
-                                ShareUtils.openUrlInBrowser(requireContext(),
-                                        currentInfo.getOriginalUrl());
-                            }
-                            break;
-                        case R.id.menu_item_share:
-                            if (currentInfo != null) {
-                                ShareUtils.shareText(requireContext(), name,
-                                        currentInfo.getOriginalUrl(), currentInfo.getAvatars());
-                            }
-                            break;
-                        case R.id.menu_item_enqueue_all:
-                             if (currentInfo != null) {
-                                 showEnqueueDialog();
-                             }
-                            break;
-                        default:
-                            return false;
-                    }
-                    return true;
+            @Override
+            public void onPrepareMenu(@NonNull final Menu menu) {
+                menuRssButton = menu.findItem(R.id.menu_item_rss);
+                menuNotifyButton = menu.findItem(R.id.menu_item_notify);
+                updateRssButton();
+                updateNotifyButton(channelSubscription);
+            }
+
+            @Override
+            public boolean onMenuItemSelected(@NonNull final MenuItem item) {
+                switch (item.getItemId()) {
+                    case R.id.menu_item_notify:
+                        final boolean value = !item.isChecked();
+                        item.setEnabled(false);
+                        setNotify(value);
+                        break;
+                    case R.id.action_settings:
+                        NavigationHelper.openSettings(requireContext());
+                        break;
+                    case R.id.menu_item_rss:
+                        if (currentInfo != null) {
+                            ShareUtils.openUrlInApp(requireContext(), currentInfo.getFeedUrl());
+                        }
+                        break;
+                    case R.id.menu_item_openInBrowser:
+                        if (currentInfo != null) {
+                            ShareUtils.openUrlInBrowser(requireContext(),
+                                    currentInfo.getOriginalUrl());
+                        }
+                        break;
+                    case R.id.menu_item_share:
+                        if (currentInfo != null) {
+                            ShareUtils.shareText(requireContext(), name,
+                                    currentInfo.getOriginalUrl(), currentInfo.getAvatars());
+                        }
+                        break;
+                    case R.id.menu_item_enqueue_all:
+                        if (currentInfo != null) {
+                            showEnqueueDialog();
+                        }
+                        break;
+                    default:
+                        return false;
                 }
-            };
-            activity.addMenuProvider(menuProvider);
+                return true;
+            }
+        };
+        activity.addMenuProvider(menuProvider);
     }
 
     @Override // called from onViewCreated in BaseFragment.onViewCreated
@@ -269,9 +272,11 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
         menuProvider = null;
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Channel Subscription
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Channel Subscription
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     private void monitorSubscription(final ChannelInfo info) {
         final Consumer<Throwable> onError = (final Throwable throwable) -> {
@@ -332,8 +337,8 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
             }
         };
 
-        final Consumer<Throwable> onError = (@NonNull Throwable throwable) ->
-                showSnackBarError(new ErrorInfo(throwable, UserAction.SUBSCRIPTION_UPDATE,
+        final Consumer<Throwable> onError = (@NonNull Throwable throwable) -> showSnackBarError(
+                new ErrorInfo(throwable, UserAction.SUBSCRIPTION_UPDATE,
                         "Updating subscription for " + info.getUrl(), info));
 
         disposables.add(subscriptionManager.updateChannelInfo(info)
@@ -349,8 +354,8 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
             }
         };
 
-        final Consumer<Throwable> onError = (@NonNull Throwable throwable) ->
-                showSnackBarError(new ErrorInfo(throwable, UserAction.SUBSCRIPTION_CHANGE,
+        final Consumer<Throwable> onError = (@NonNull Throwable throwable) -> showSnackBarError(
+                new ErrorInfo(throwable, UserAction.SUBSCRIPTION_CHANGE,
                         "Changing subscription for " + currentInfo.getUrl(), currentInfo));
 
         /* Emit clicks from main thread unto io thread */
@@ -392,8 +397,7 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                 }
                 channelSubscription = subscriptionEntities.get(0);
                 updateNotifyButton(channelSubscription);
-                subscribeButtonMonitor =
-                        monitorSubscribeButton(mapOnUnsubscribe(channelSubscription));
+                subscribeButtonMonitor = monitorSubscribeButton(mapOnUnsubscribe(channelSubscription));
             }
         };
     }
@@ -404,8 +408,7 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                     + "isSubscribed = [" + isSubscribed + "]");
         }
 
-        final boolean isButtonVisible = binding.channelSubscribeButton.getVisibility()
-                == View.VISIBLE;
+        final boolean isButtonVisible = binding.channelSubscribeButton.getVisibility() == View.VISIBLE;
         final int backgroundDuration = isButtonVisible ? 300 : 0;
         final int textDuration = isButtonVisible ? 200 : 0;
 
@@ -446,11 +449,9 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
         }
         if (subscription != null) {
             menuNotifyButton.setEnabled(
-                    NotificationHelper.areNewStreamsNotificationsEnabled(requireContext())
-            );
+                    NotificationHelper.areNewStreamsNotificationsEnabled(requireContext()));
             menuNotifyButton.setChecked(
-                    subscription.getNotificationMode() == NotificationMode.ENABLED
-            );
+                    subscription.getNotificationMode() == NotificationMode.ENABLED);
         }
 
         menuNotifyButton.setVisible(subscription != null);
@@ -465,12 +466,12 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                                 isEnabled ? NotificationMode.ENABLED : NotificationMode.DISABLED)
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe()
-        );
+                        .subscribe());
     }
 
     /**
-     * Show a snackbar with the option to enable notifications on new streams for this channel.
+     * Show a snackbar with the option to enable notifications on new streams for
+     * this channel.
      */
     private void showNotifySnackbar() {
         Snackbar.make(binding.getRoot(), R.string.you_successfully_subscribed, Snackbar.LENGTH_LONG)
@@ -479,10 +480,11 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                 .show();
     }
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Init
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Init
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     private void updateTabs() {
         tabAdapter.clearAllItems();
@@ -495,8 +497,8 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
             for (final ListLinkHandler linkHandler : currentInfo.getTabs()) {
                 final String tab = linkHandler.getContentFilters().get(0);
                 if (ChannelTabHelper.showChannelTab(context, preferences, tab)) {
-                    final ChannelTabFragment channelTabFragment =
-                            ChannelTabFragment.getInstance(serviceId, linkHandler, name);
+                    final ChannelTabFragment channelTabFragment = ChannelTabFragment.getInstance(serviceId, linkHandler,
+                            name);
                     channelTabFragment.useAsFrontPage(useAsFrontPage);
                     tabAdapter.addFragment(channelTabFragment,
                             context.getString(ChannelTabHelper.getTranslationKey(tab)));
@@ -524,10 +526,11 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
         }
     }
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // State Saving
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // State Saving
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     public String generateSuffix() {
@@ -560,10 +563,11 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
         lastTab = savedInstanceState.getInt("LastTab", 0);
     }
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Contract
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Contract
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     protected void doInitialLoadLogic() {
@@ -615,7 +619,8 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
             PicassoHelper.loadBanner(result.getBanners()).tag(PICASSO_CHANNEL_TAG)
                     .into(binding.channelBannerImage);
         } else {
-            // do not waste space for the banner, if the user disabled images or there is not one
+            // do not waste space for the banner, if the user disabled images or there is
+            // not one
             binding.channelBannerImage.setImageDrawable(null);
         }
 
@@ -636,8 +641,7 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
         if (!TextUtils.isEmpty(currentInfo.getParentChannelName())) {
             binding.subChannelTitleView.setText(String.format(
                     getString(R.string.channel_created_by),
-                    currentInfo.getParentChannelName())
-            );
+                    currentInfo.getParentChannelName()));
             binding.subChannelTitleView.setVisibility(View.VISIBLE);
             binding.subChannelAvatarView.setVisibility(View.VISIBLE);
         }
@@ -675,30 +679,31 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                     if (item == 0) {
                         enqueueLoadedItems();
                     } else if (item == 1) {
-                         enqueueAllChannelItems();
+                        enqueueAllChannelItems();
                     }
                 })
                 .show();
     }
 
     private void enqueueLoadedItems() {
-        if (tabAdapter == null || binding == null) return;
-        
+        if (tabAdapter == null || binding == null)
+            return;
+
         final androidx.fragment.app.Fragment fragment = tabAdapter.getItem(binding.viewPager.getCurrentItem());
         List<StreamInfoItem> items = null;
-        
+
         if (fragment instanceof ChannelTabFragment) {
             items = ((ChannelTabFragment) fragment).getLoadedItems();
         }
-        
+
         if (items == null || items.isEmpty()) {
-             Toast.makeText(requireContext(), R.string.no_streams, Toast.LENGTH_SHORT).show();
-             return;
+            Toast.makeText(requireContext(), R.string.no_streams, Toast.LENGTH_SHORT).show();
+            return;
         }
 
         final List<StreamEntity> streams = new ArrayList<>();
         for (StreamInfoItem item : items) {
-             streams.add(new StreamEntity(item));
+            streams.add(new StreamEntity(item));
         }
         PlaylistAppendDialog.newInstance(streams).show(getChildFragmentManager(), TAG);
     }
@@ -709,12 +714,12 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
         // Try to get handler from current tab
         if (tabAdapter != null && binding != null) {
             final androidx.fragment.app.Fragment fragment = tabAdapter.getItem(binding.viewPager.getCurrentItem());
-             if (fragment instanceof ChannelTabFragment) {
-                 ListLinkHandler handler = ((ChannelTabFragment) fragment).getTabHandler();
-                 if (handler != null && ChannelTabHelper.isStreamsTab(handler)) {
-                     targetHandler = handler;
-                 }
-             }
+            if (fragment instanceof ChannelTabFragment) {
+                ListLinkHandler handler = ((ChannelTabFragment) fragment).getTabHandler();
+                if (handler != null && ChannelTabHelper.isStreamsTab(handler)) {
+                    targetHandler = handler;
+                }
+            }
         }
 
         // Fallback: look for first stream tab in currentInfo
@@ -737,6 +742,7 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
         dialog.setMessage(getString(R.string.fetched_videos_count, 0));
         dialog.setIndeterminate(true);
         dialog.setCancelable(true);
+        dialog.setCanceledOnTouchOutside(false);
         dialog.show();
 
         final List<StreamEntity> allItems = new ArrayList<>();
@@ -748,12 +754,12 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
                     for (InfoItem item : result.getRelatedItems()) {
-                         if (item instanceof StreamInfoItem) {
-                             allItems.add(new StreamEntity((StreamInfoItem) item));
-                         }
+                        if (item instanceof StreamInfoItem) {
+                            allItems.add(new StreamEntity((StreamInfoItem) item));
+                        }
                     }
                     dialog.setMessage(getString(R.string.fetched_videos_count, allItems.size()));
-                    
+
                     if (Page.isValid(result.getNextPage())) {
                         fetchNextPage(result.getNextPage(), handler, allItems, dialog);
                     } else {
@@ -764,20 +770,20 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                     dialog.dismiss();
                     ErrorUtil.showUiErrorSnackbar(this, "Fetching channel", error);
                 });
-        
+
         dialog.setOnCancelListener(di -> d.dispose());
         disposables.add(d);
     }
 
     private void fetchNextPage(Page page, ListLinkHandler handler, List<StreamEntity> allItems, ProgressDialog dialog) {
-         Disposable d = ExtractorHelper.getMoreChannelTabItems(serviceId, handler, page)
+        Disposable d = ExtractorHelper.getMoreChannelTabItems(serviceId, handler, page)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
                     for (InfoItem item : result.getItems()) {
-                         if (item instanceof StreamInfoItem) {
-                             allItems.add(new StreamEntity((StreamInfoItem) item));
-                         }
+                        if (item instanceof StreamInfoItem) {
+                            allItems.add(new StreamEntity((StreamInfoItem) item));
+                        }
                     }
                     dialog.setMessage(getString(R.string.fetched_videos_count, allItems.size()));
 
@@ -791,12 +797,14 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                     dialog.dismiss();
                     ErrorUtil.showUiErrorSnackbar(this, "Fetching more items", error);
                 });
-         // Add to disposables if we want global cancel, but dialog cancel handles the chain root? 
-         // No, fetchNextPage starts a new disposable. We should ideally track it.
-         // However, standard simplified implementation for this feature often relies on "fire and forget" if user doesn't cancel.
-         // But if dialog is cancelled, the CURRENT request should stop.
-         // The previous disposable is done. We can update the CancelListener.
-         dialog.setOnCancelListener(di -> d.dispose());
+        // Add to disposables if we want global cancel, but dialog cancel handles the
+        // chain root?
+        // No, fetchNextPage starts a new disposable. We should ideally track it.
+        // However, standard simplified implementation for this feature often relies on
+        // "fire and forget" if user doesn't cancel.
+        // But if dialog is cancelled, the CURRENT request should stop.
+        // The previous disposable is done. We can update the CancelListener.
+        dialog.setOnCancelListener(di -> d.dispose());
     }
 
     private void showContentNotSupportedIfNeeded() {
