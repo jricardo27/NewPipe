@@ -27,4 +27,9 @@
         android:id="@+id/menu_item_remove_duplicates"
         android:title="@string/remove_duplicates"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_item_export_playlist_json"
+        android:title="@string/export_playlist_json"
+        app:showAsAction="never" />
 </menu>

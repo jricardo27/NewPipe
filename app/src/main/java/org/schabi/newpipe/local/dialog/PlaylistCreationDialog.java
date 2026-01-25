@@ -25,7 +25,7 @@ public final class PlaylistCreationDialog extends PlaylistDialog {
     /**
      * Create a new instance of {@link PlaylistCreationDialog}.
      *
-     * @param streamEntities    a list of {@link StreamEntity} to be added to playlists
+     * @param streamEntities a list of {@link StreamEntity} to be added to playlists
      * @return a new instance of {@link PlaylistCreationDialog}
      */
     public static PlaylistCreationDialog newInstance(final List<StreamEntity> streamEntities) {
@@ -34,9 +34,11 @@ public final class PlaylistCreationDialog extends PlaylistDialog {
         return dialog;
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Dialog
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Dialog
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @NonNull
     @Override
@@ -45,8 +47,7 @@ public final class PlaylistCreationDialog extends PlaylistDialog {
             return super.onCreateDialog(savedInstanceState);
         }
 
-        final DialogEditTextBinding dialogBinding =
-                DialogEditTextBinding.inflate(getLayoutInflater());
+        final DialogEditTextBinding dialogBinding = DialogEditTextBinding.inflate(getLayoutInflater());
         dialogBinding.getRoot().getContext().setTheme(ThemeHelper.getDialogTheme(requireContext()));
         dialogBinding.dialogEditText.setHint(R.string.name);
         dialogBinding.dialogEditText.setInputType(InputType.TYPE_CLASS_TEXT);
@@ -59,8 +60,8 @@ public final class PlaylistCreationDialog extends PlaylistDialog {
                 .setNegativeButton(R.string.cancel, null)
                 .setPositiveButton(R.string.create, (dialogInterface, i) -> {
                     final String name = dialogBinding.dialogEditText.getText().toString();
-                    final LocalPlaylistManager playlistManager =
-                            new LocalPlaylistManager(NewPipeDatabase.getInstance(requireContext()));
+                    final LocalPlaylistManager playlistManager = new LocalPlaylistManager(
+                            NewPipeDatabase.getInstance(requireContext()));
                     final Toast successToast = Toast.makeText(getActivity(),
                             R.string.playlist_creation_success,
                             Toast.LENGTH_SHORT);
@@ -69,6 +70,8 @@ public final class PlaylistCreationDialog extends PlaylistDialog {
                             .observeOn(AndroidSchedulers.mainThread())
                             .subscribe(longs -> successToast.show());
                 });
-        return dialogBuilder.create();
+        final Dialog dialog = dialogBuilder.create();
+        dialog.setCanceledOnTouchOutside(false);
+        return dialog;
     }
 }

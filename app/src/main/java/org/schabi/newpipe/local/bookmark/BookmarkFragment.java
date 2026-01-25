@@ -48,6 +48,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.widget.Toast;
+import android.app.Activity;
+import android.net.Uri;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+
+import org.schabi.newpipe.local.playlist.PlaylistImportExportJsonHelper;
+
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -78,6 +90,9 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
     // Fragment LifeCycle - Creation
     ///////////////////////////////////////////////////////////////////////////
 
+    private ActivityResultLauncher<String> createDocumentLauncher;
+    private ActivityResultLauncher<String[]> openDocumentLauncher;
+
     @Override
     public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -93,13 +108,82 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
         debounceSaver = new DebounceSaver(3000, this);
 
         deletedItems = new ArrayList<>();
+
+        createDocumentLauncher = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("application/json"),
+                this::exportAllPlaylistsToUri);
+
+        openDocumentLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(),
+                this::importPlaylistsFromUri);
+    }
+
+    private void exportAllPlaylistsToUri(final Uri uri) {
+        if (uri == null) {
+            return;
+        }
+
+        if (localPlaylistManager != null) {
+            disposables.add(localPlaylistManager.getAllPlaylistsWithStreams()
+                    .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(playlists -> {
+                        try {
+                            java.io.OutputStream os = activity.getContentResolver().openOutputStream(uri);
+                            if (os == null) {
+                                throw new java.io.IOException("Could not open output stream");
+                            }
+                            PlaylistImportExportJsonHelper.writeTo(playlists, os, null);
+                            Toast.makeText(activity, R.string.export_complete_toast, Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(this, "Exporting playlists", e);
+                        }
+                    }, throwable -> org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(this, "Exporting playlists",
+                            throwable)));
+        }
+    }
+
+    private void importPlaylistsFromUri(final Uri uri) {
+        if (uri == null) {
+            return;
+        }
+
+        try {
+            java.io.InputStream is = activity.getContentResolver().openInputStream(uri);
+            List<PlaylistImportExportJsonHelper.PlaylistWithStreams> playlists = PlaylistImportExportJsonHelper
+                    .readFrom(is, null);
+
+            if (playlists == null || playlists.isEmpty()) {
+                Toast.makeText(activity, "No playlists found in file", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Import playslists
+            if (localPlaylistManager != null) {
+                // We chain imports
+                io.reactivex.rxjava3.core.Observable.fromIterable(playlists)
+                        .concatMapMaybe(
+                                playlist -> localPlaylistManager.createPlaylist(playlist.name, playlist.streams)
+                                        .map(ids -> playlist.name))
+                        .toList()
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(names -> {
+                            Toast.makeText(activity, "Imported " + names.size() + " playlists", Toast.LENGTH_SHORT)
+                                    .show();
+                        }, throwable -> org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(this,
+                                "Importing playlists", throwable));
+            }
+
+        } catch (Exception e) {
+            org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(this, "Importing playlists", e);
+        }
     }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull final LayoutInflater inflater,
-                             @Nullable final ViewGroup container,
-                             final Bundle savedInstanceState) {
+            @Nullable final ViewGroup container,
+            final Bundle savedInstanceState) {
 
         if (!useAsFrontPage) {
             setTitle(activity.getString(R.string.tab_bookmarks));
@@ -164,7 +248,7 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
 
             @Override
             public void drag(final LocalItem selectedItem,
-                             final RecyclerView.ViewHolder viewHolder) {
+                    final RecyclerView.ViewHolder viewHolder) {
                 if (itemTouchHelper != null) {
                     itemTouchHelper.startDrag(viewHolder);
                 }
@@ -312,9 +396,11 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
         }
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Playlist Metadata Manipulation
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Playlist Metadata Manipulation
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     private void changeLocalPlaylistName(final long id, final String name) {
         if (localPlaylistManager == null) {
@@ -328,10 +414,11 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
 
         final Disposable disposable = localPlaylistManager.renamePlaylist(id, name)
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(longs -> { /*Do nothing on success*/ }, throwable -> showError(
-                        new ErrorInfo(throwable,
-                                UserAction.REQUESTED_BOOKMARK,
-                                "Changing playlist name")));
+                .subscribe(longs -> {
+                    /* Do nothing on success */ }, throwable -> showError(
+                            new ErrorInfo(throwable,
+                                    UserAction.REQUESTED_BOOKMARK,
+                                    "Changing playlist name")));
         disposables.add(disposable);
     }
 
@@ -407,13 +494,12 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
                         remoteItemsUpdate, remoteItemsDeleteUid))
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
-                            if (debounceSaver != null) {
-                                debounceSaver.setNoChangesToSave();
-                            }
-                        },
+                    if (debounceSaver != null) {
+                        debounceSaver.setNoChangesToSave();
+                    }
+                },
                         throwable -> showError(new ErrorInfo(throwable,
-                                UserAction.REQUESTED_BOOKMARK, "Saving playlist"))
-                ));
+                                UserAction.REQUESTED_BOOKMARK, "Saving playlist"))));
 
     }
 
@@ -425,10 +511,10 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
         return new ItemTouchHelper.SimpleCallback(directions, ItemTouchHelper.ACTION_STATE_IDLE) {
             @Override
             public int interpolateOutOfBoundsScroll(@NonNull final RecyclerView recyclerView,
-                                                    final int viewSize,
-                                                    final int viewSizeOutOfBounds,
-                                                    final int totalSize,
-                                                    final long msSinceStartScroll) {
+                    final int viewSize,
+                    final int viewSizeOutOfBounds,
+                    final int totalSize,
+                    final long msSinceStartScroll) {
                 final int standardSpeed = super.interpolateOutOfBoundsScroll(recyclerView,
                         viewSize, viewSizeOutOfBounds, totalSize, msSinceStartScroll);
                 final int minimumAbsVelocity = Math.max(MINIMUM_INITIAL_DRAG_VELOCITY,
@@ -438,22 +524,17 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
 
             @Override
             public boolean onMove(@NonNull final RecyclerView recyclerView,
-                                  @NonNull final RecyclerView.ViewHolder source,
-                                  @NonNull final RecyclerView.ViewHolder target) {
+                    @NonNull final RecyclerView.ViewHolder source,
+                    @NonNull final RecyclerView.ViewHolder target) {
 
-                // Allow swap LocalBookmarkPlaylistItemHolder and RemoteBookmarkPlaylistItemHolder.
+                // Allow swap LocalBookmarkPlaylistItemHolder and
+                // RemoteBookmarkPlaylistItemHolder.
                 if (itemListAdapter == null
                         || source.getItemViewType() != target.getItemViewType()
-                        && !(
-                        (
-                                (source instanceof LocalBookmarkPlaylistItemHolder)
-                                        || (source instanceof RemoteBookmarkPlaylistItemHolder)
-                        )
-                                && (
-                                (target instanceof LocalBookmarkPlaylistItemHolder)
-                                        || (target instanceof RemoteBookmarkPlaylistItemHolder)
-                        ))
-                ) {
+                                && !(((source instanceof LocalBookmarkPlaylistItemHolder)
+                                        || (source instanceof RemoteBookmarkPlaylistItemHolder))
+                                        && ((target instanceof LocalBookmarkPlaylistItemHolder)
+                                                || (target instanceof RemoteBookmarkPlaylistItemHolder)))) {
                     return false;
                 }
 
@@ -478,10 +559,34 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
 
             @Override
             public void onSwiped(@NonNull final RecyclerView.ViewHolder viewHolder,
-                                 final int swipeDir) {
+                    final int swipeDir) {
                 // Do nothing.
             }
         };
+    }
+
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Menu
+     * //////////////////////////////////////////////////////////////////////////
+     */
+
+    @Override
+    public void onCreateOptionsMenu(@NonNull final Menu menu, @NonNull final MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.menu_bookmarks, menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(final MenuItem item) {
+        if (item.getItemId() == R.id.menu_item_export_all_playlists_json) {
+            createDocumentLauncher.launch("newpipe_playlists.json");
+            return true;
+        } else if (item.getItemId() == R.id.menu_item_import_playlists_json) {
+            openDocumentLauncher.launch(new String[] { "application/json" });
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -527,18 +632,16 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
     }
 
     private void showRenameDialog(final PlaylistMetadataEntry selectedItem) {
-        final DialogEditTextBinding dialogBinding =
-                DialogEditTextBinding.inflate(getLayoutInflater());
+        final DialogEditTextBinding dialogBinding = DialogEditTextBinding.inflate(getLayoutInflater());
         dialogBinding.dialogEditText.setHint(R.string.name);
         dialogBinding.dialogEditText.setInputType(InputType.TYPE_CLASS_TEXT);
         dialogBinding.dialogEditText.setText(selectedItem.getOrderingName());
 
         new AlertDialog.Builder(activity)
                 .setView(dialogBinding.getRoot())
-                .setPositiveButton(R.string.rename_playlist, (dialog, which) ->
-                        changeLocalPlaylistName(
-                                selectedItem.getUid(),
-                                dialogBinding.dialogEditText.getText().toString()))
+                .setPositiveButton(R.string.rename_playlist, (dialog, which) -> changeLocalPlaylistName(
+                        selectedItem.getUid(),
+                        dialogBinding.dialogEditText.getText().toString()))
                 .setNegativeButton(R.string.cancel, null)
                 .show();
     }

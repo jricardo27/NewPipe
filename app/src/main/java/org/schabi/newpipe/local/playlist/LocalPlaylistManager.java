@@ -46,29 +46,27 @@ public class LocalPlaylistManager {
         // Make sure the new playlist is always on the top of bookmark.
         // The index will be reassigned to non-negative number in BookmarkFragment.
         return Maybe.fromCallable(() -> database.runInTransaction(() -> {
-                    final List<Long> streamIds = streamTable.upsertAll(streams);
-                    final PlaylistEntity newPlaylist = new PlaylistEntity(name, false,
-                            streamIds.get(0), -1);
+            final List<Long> streamIds = streamTable.upsertAll(streams);
+            final PlaylistEntity newPlaylist = new PlaylistEntity(name, false,
+                    streamIds.get(0), -1);
 
-                    return insertJoinEntities(playlistTable.insert(newPlaylist),
-                            streamIds, 0);
-                }
-        )).subscribeOn(Schedulers.io());
+            return insertJoinEntities(playlistTable.insert(newPlaylist),
+                    streamIds, 0);
+        })).subscribeOn(Schedulers.io());
     }
 
     public Maybe<List<Long>> appendToPlaylist(final long playlistId,
-                                              final List<StreamEntity> streams) {
+            final List<StreamEntity> streams) {
         return playlistStreamTable.getMaximumIndexOf(playlistId)
                 .firstElement()
                 .map(maxJoinIndex -> database.runInTransaction(() -> {
-                            final List<Long> streamIds = streamTable.upsertAll(streams);
-                            return insertJoinEntities(playlistId, streamIds, maxJoinIndex + 1);
-                        }
-                )).subscribeOn(Schedulers.io());
+                    final List<Long> streamIds = streamTable.upsertAll(streams);
+                    return insertJoinEntities(playlistId, streamIds, maxJoinIndex + 1);
+                })).subscribeOn(Schedulers.io());
     }
 
     private List<Long> insertJoinEntities(final long playlistId, final List<Long> streamIds,
-                                          final int indexOffset) {
+            final int indexOffset) {
 
         final List<PlaylistStreamEntity> joinEntities = new ArrayList<>(streamIds.size());
 
@@ -92,7 +90,7 @@ public class LocalPlaylistManager {
     }
 
     public Completable updatePlaylists(final List<PlaylistMetadataEntry> updateItems,
-                                       final List<Long> deletedItems) {
+            final List<Long> deletedItems) {
         final List<PlaylistEntity> items = new ArrayList<>(updateItems.size());
         for (final PlaylistMetadataEntry item : updateItems) {
             items.add(new PlaylistEntity(item));
@@ -113,7 +111,8 @@ public class LocalPlaylistManager {
     }
 
     /**
-     * Get playlists with attached information about how many times the provided stream is already
+     * Get playlists with attached information about how many times the provided
+     * stream is already
      * contained in each playlist.
      *
      * @param streamUrl the stream url for which to check for duplicates
@@ -128,8 +127,30 @@ public class LocalPlaylistManager {
         return playlistStreamTable.getPlaylistMetadata().subscribeOn(Schedulers.io());
     }
 
-    public Flowable<List<PlaylistStreamEntry>> getPlaylistStreams(final long playlistId) {
+    public Flowable<List<org.schabi.newpipe.database.playlist.PlaylistStreamEntry>> getPlaylistStreams(
+            final long playlistId) {
         return playlistStreamTable.getOrderedStreamsOf(playlistId).subscribeOn(Schedulers.io());
+    }
+
+    public Flowable<List<StreamEntity>> getPlaylistStreamEntities(final long playlistId) {
+        return playlistStreamTable.getOrderedStreamsOf(playlistId)
+                .map(entries -> {
+                    final List<StreamEntity> streams = new ArrayList<>(entries.size());
+                    for (final org.schabi.newpipe.database.playlist.PlaylistStreamEntry entry : entries) {
+                        streams.add(entry.getStreamEntity());
+                    }
+                    return streams;
+                })
+                .subscribeOn(Schedulers.io());
+    }
+
+    public io.reactivex.rxjava3.core.Single<List<PlaylistImportExportJsonHelper.PlaylistWithStreams>> getAllPlaylistsWithStreams() {
+        return getPlaylists().firstOrError()
+                .flatMapObservable(io.reactivex.rxjava3.core.Observable::fromIterable)
+                .flatMapSingle(playlist -> getPlaylistStreamEntities(playlist.getUid()).firstOrError()
+                        .map(streams -> new PlaylistImportExportJsonHelper.PlaylistWithStreams(
+                                playlist.getOrderingName(), streams)))
+                .toList();
     }
 
     public Maybe<Integer> renamePlaylist(final long playlistId, final String name) {
@@ -137,8 +158,8 @@ public class LocalPlaylistManager {
     }
 
     public Maybe<Integer> changePlaylistThumbnail(final long playlistId,
-                                                  final long thumbnailStreamId,
-                                                  final boolean isPermanent) {
+            final long thumbnailStreamId,
+            final boolean isPermanent) {
         return modifyPlaylist(playlistId, null, thumbnailStreamId, isPermanent);
     }
 
@@ -161,9 +182,9 @@ public class LocalPlaylistManager {
     }
 
     private Maybe<Integer> modifyPlaylist(final long playlistId,
-                                          @Nullable final String name,
-                                          final long thumbnailStreamId,
-                                          final boolean isPermanent) {
+            @Nullable final String name,
+            final long thumbnailStreamId,
+            final boolean isPermanent) {
         return playlistTable.getPlaylist(playlistId)
                 .firstElement()
                 .filter(playlistEntities -> !playlistEntities.isEmpty())
