@@ -14,10 +14,11 @@ import androidx.annotation.NonNull;
 
 final class PlaceholderMediaSource
         extends CompositeMediaSource<Void> implements ManagedMediaSource {
-    public static final PlaceholderMediaSource COPY = new PlaceholderMediaSource();
-    private static final MediaItem MEDIA_ITEM = PlaceholderTag.EMPTY.withExtras(COPY).asMediaItem();
+    private static final MediaItem MEDIA_ITEM = PlaceholderTag.EMPTY.withExtras(new PlaceholderMediaSource())
+            .asMediaItem();
 
-    private PlaceholderMediaSource() { }
+    public PlaceholderMediaSource() {
+    }
 
     @Override
     public MediaItem getMediaItem() {
@@ -26,23 +27,24 @@ final class PlaceholderMediaSource
 
     @Override
     protected void onChildSourceInfoRefreshed(final Void id,
-                                              final MediaSource mediaSource,
-                                              final Timeline timeline) {
+            final MediaSource mediaSource,
+            final Timeline timeline) {
         /* Do nothing, no timeline updates or error will stall playback */
     }
 
     @Override
     public MediaPeriod createPeriod(final MediaPeriodId id, final Allocator allocator,
-                                    final long startPositionUs) {
+            final long startPositionUs) {
         return null;
     }
 
     @Override
-    public void releasePeriod(final MediaPeriod mediaPeriod) { }
+    public void releasePeriod(final MediaPeriod mediaPeriod) {
+    }
 
     @Override
     public boolean shouldBeReplacedWith(@NonNull final PlayQueueItem newIdentity,
-                                        final boolean isInterruptable) {
+            final boolean isInterruptable) {
         return true;
     }
 
