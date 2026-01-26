@@ -602,8 +602,9 @@ public class MediaSourceManager {
         if (DEBUG) {
             Log.d(TAG, "populateSources() called.");
         }
-        while (playlist.size() < playQueue.size()) {
-            playlist.expand();
+        final int missing = playQueue.size() - playlist.size();
+        if (missing > 0) {
+            playlist.expand(missing);
         }
     }
 

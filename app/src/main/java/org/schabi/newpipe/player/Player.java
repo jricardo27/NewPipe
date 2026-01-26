@@ -1582,16 +1582,25 @@ public final class Player implements PlaybackListener, Listener {
                 break;
             case ERROR_CODE_TIMEOUT:
             case ERROR_CODE_IO_UNSPECIFIED:
+            case ERROR_CODE_UNSPECIFIED:
+                if (!exoPlayerIsNull() && playQueue != null && playQueue.size() > 1) {
+                    playQueue.error();
+                    break;
+                }
+                // fallthrough
             case ERROR_CODE_IO_NETWORK_CONNECTION_FAILED:
             case ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT:
-            case ERROR_CODE_UNSPECIFIED:
                 // Reload playback on unexpected errors:
                 setRecovery();
                 reloadPlayQueueManager();
                 break;
             default:
                 // API, remote and renderer errors belong here:
-                onPlaybackShutdown();
+                if (!exoPlayerIsNull() && playQueue != null && playQueue.size() > 1) {
+                    playQueue.error();
+                } else {
+                    onPlaybackShutdown();
+                }
                 break;
         }
 

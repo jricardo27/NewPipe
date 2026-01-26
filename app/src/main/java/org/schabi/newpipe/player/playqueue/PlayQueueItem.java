@@ -55,10 +55,10 @@ public class PlayQueueItem implements Serializable {
     }
 
     @SuppressWarnings("ParameterNumber")
-    private PlayQueueItem(@Nullable final String name, @Nullable final String url,
-                          final int serviceId, final long duration,
-                          final List<Image> thumbnails, @Nullable final String uploader,
-                          final String uploaderUrl, @NonNull final StreamType streamType) {
+    public PlayQueueItem(@Nullable final String name, @Nullable final String url,
+            final int serviceId, final long duration,
+            @NonNull final List<Image> thumbnails, @Nullable final String uploader,
+            final String uploaderUrl, @NonNull final StreamType streamType) {
         this.title = name != null ? name : EMPTY_STRING;
         this.url = url != null ? url : EMPTY_STRING;
         this.serviceId = serviceId;
@@ -71,8 +71,10 @@ public class PlayQueueItem implements Serializable {
         this.recoveryPosition = RECOVERY_UNSET;
     }
 
-    /** Whether these two items should be treated as the same stream
-     * for the sake of keeping the same player running when e.g. jumping between timestamps.
+    /**
+     * Whether these two items should be treated as the same stream
+     * for the sake of keeping the same player running when e.g. jumping between
+     * timestamps.
      *
      * @param other the {@link PlayQueueItem} to compare against.
      * @return whether the two items are the same so the stream can be re-used.
@@ -128,7 +130,7 @@ public class PlayQueueItem implements Serializable {
         return recoveryPosition;
     }
 
-    /*package-private*/ void setRecoveryPosition(final long recoveryPosition) {
+    /* package-private */ void setRecoveryPosition(final long recoveryPosition) {
         this.recoveryPosition = recoveryPosition;
     }
 

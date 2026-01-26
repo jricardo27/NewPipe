@@ -69,6 +69,18 @@ public class ManagedMediaSourcePlaylist {
         append(new PlaceholderMediaSource());
     }
 
+    public synchronized void expand(final int count) {
+        if (count <= 0) {
+            return;
+        }
+        final java.util.List<com.google.android.exoplayer2.source.MediaSource> sources = new java.util.ArrayList<>(
+                count);
+        for (int i = 0; i < count; i++) {
+            sources.add(new PlaceholderMediaSource());
+        }
+        internalSource.addMediaSources(sources);
+    }
+
     /**
      * Appends a {@link ManagedMediaSource} to the end of
      * {@link ConcatenatingMediaSource}.

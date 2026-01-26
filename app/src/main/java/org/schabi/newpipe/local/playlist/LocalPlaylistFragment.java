@@ -57,12 +57,14 @@ import org.schabi.newpipe.info_list.dialog.StreamDialogDefaultEntry;
 import org.schabi.newpipe.local.BaseLocalListFragment;
 import org.schabi.newpipe.local.history.HistoryRecordManager;
 import org.schabi.newpipe.player.playqueue.PlayQueue;
+import org.schabi.newpipe.player.playqueue.PlayQueueItem;
 import org.schabi.newpipe.player.playqueue.SinglePlayQueue;
 import org.schabi.newpipe.util.DeviceUtils;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.OnClickGesture;
 import org.schabi.newpipe.util.PlayButtonHelper;
+import org.schabi.newpipe.util.image.ImageStrategy;
 import org.schabi.newpipe.util.debounce.DebounceSavable;
 import org.schabi.newpipe.util.debounce.DebounceSaver;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
@@ -1005,13 +1007,17 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         }
 
         final List<LocalItem> infoItems = itemListAdapter.getItemsList();
-        final List<StreamInfoItem> streamInfoItems = new ArrayList<>(infoItems.size());
+        final List<PlayQueueItem> playQueueItems = new ArrayList<>(infoItems.size());
         for (final LocalItem item : infoItems) {
-            if (item instanceof PlaylistStreamEntry) {
-                streamInfoItems.add(((PlaylistStreamEntry) item).toStreamInfoItem());
+            if (item instanceof PlaylistStreamEntry entry) {
+                final StreamEntity entity = entry.getStreamEntity();
+                playQueueItems.add(new PlayQueueItem(
+                        entity.getTitle(), entity.getUrl(), entity.getServiceId(), entity.getDuration(),
+                        ImageStrategy.dbUrlToImageList(entity.getThumbnailUrl()),
+                        entity.getUploader(), entity.getUploaderUrl(), entity.getStreamType()));
             }
         }
-        return new SinglePlayQueue(streamInfoItems, index);
+        return new SinglePlayQueue(index, playQueueItems);
     }
 
     /**
