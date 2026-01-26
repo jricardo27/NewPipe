@@ -255,6 +255,9 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
 
     @Override
     public void onDestroyView() {
+        if (binding != null) {
+            lastTab = binding.tabLayout.getSelectedTabPosition();
+        }
         super.onDestroyView();
         if (menuProvider != null) {
             activity.removeMenuProvider(menuProvider);
