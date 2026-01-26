@@ -38,7 +38,7 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
     /**
      * Create a new instance of {@link PlaylistAppendDialog}.
      *
-     * @param streamEntities    a list of {@link StreamEntity} to be added to playlists
+     * @param streamEntities a list of {@link StreamEntity} to be added to playlists
      * @return a new instance of {@link PlaylistAppendDialog}
      */
     public static PlaylistAppendDialog newInstance(final List<StreamEntity> streamEntities) {
@@ -47,13 +47,15 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
         return dialog;
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // LifeCycle - Creation
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // LifeCycle - Creation
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     public View onCreateView(@NonNull final LayoutInflater inflater, final ViewGroup container,
-                             final Bundle savedInstanceState) {
+            final Bundle savedInstanceState) {
         return inflater.inflate(R.layout.dialog_playlists, container);
     }
 
@@ -61,8 +63,8 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
     public void onViewCreated(@NonNull final View view, @Nullable final Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        final LocalPlaylistManager playlistManager =
-                new LocalPlaylistManager(NewPipeDatabase.getInstance(requireContext()));
+        final LocalPlaylistManager playlistManager = new LocalPlaylistManager(
+                NewPipeDatabase.getInstance(requireContext()));
 
         playlistAdapter = new LocalItemListAdapter(getActivity());
         playlistAdapter.setSelectedListener(selectedItem -> {
@@ -79,6 +81,13 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
 
         playlistDuplicateIndicator = view.findViewById(R.id.playlist_duplicate);
 
+        final TextView playlistAddCount = view.findViewById(R.id.playlist_add_count);
+        final List<StreamEntity> entitiesToAdd = getStreamEntities();
+        if (entitiesToAdd != null && entitiesToAdd.size() > 1) {
+            playlistAddCount.setText(getString(R.string.fetched_videos_count, entitiesToAdd.size()));
+            playlistAddCount.setVisibility(View.VISIBLE);
+        }
+
         final View newPlaylistButton = view.findViewById(R.id.newPlaylist);
         newPlaylistButton.setOnClickListener(ignored -> openCreatePlaylistDialog());
 
@@ -88,9 +97,11 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
                 .subscribe(this::onPlaylistsReceived));
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // LifeCycle - Destruction
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // LifeCycle - Destruction
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     public void onDestroyView() {
@@ -105,9 +116,11 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
         playlistAdapter = null;
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Helper
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Helper
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     /** Display create playlist dialog. */
     public void openCreatePlaylistDialog() {
@@ -115,8 +128,7 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
             return;
         }
 
-        final PlaylistCreationDialog playlistCreationDialog =
-                PlaylistCreationDialog.newInstance(getStreamEntities());
+        final PlaylistCreationDialog playlistCreationDialog = PlaylistCreationDialog.newInstance(getStreamEntities());
         // Move the dismissListener to the new dialog.
         playlistCreationDialog.setOnDismissListener(this.getOnDismissListener());
         this.setOnDismissListener(null);
@@ -143,12 +155,13 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
     }
 
     private void onPlaylistSelected(@NonNull final LocalPlaylistManager manager,
-                                    @NonNull final PlaylistDuplicatesEntry playlist,
-                                    @NonNull final List<StreamEntity> streams) {
+            @NonNull final PlaylistDuplicatesEntry playlist,
+            @NonNull final List<StreamEntity> streams) {
 
         final String toastText;
         if (streams.size() > 1) {
-            toastText = getString(R.string.playlist_add_streams_success_with_name, streams.size(), playlist.getOrderingName());
+            toastText = getString(R.string.playlist_add_streams_success_with_name, streams.size(),
+                    playlist.getOrderingName());
         } else if (playlist.getTimesStreamIsContained() > 0) {
             toastText = getString(R.string.playlist_add_stream_success_duplicate,
                     playlist.getTimesStreamIsContained());
@@ -164,8 +177,7 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
                     successToast.show();
 
                     if (playlist.getThumbnailStreamId() != null
-                            && playlist.getThumbnailStreamId() == DEFAULT_THUMBNAIL_ID
-                    ) {
+                            && playlist.getThumbnailStreamId() == DEFAULT_THUMBNAIL_ID) {
                         playlistDisposables.add(manager
                                 .changePlaylistThumbnail(playlist.getUid(), streams.get(0).getUid(),
                                         false)
