@@ -470,15 +470,17 @@ public class MediaSourceManager {
                                     new MediaSourceResolutionException(message));
                         }))
                 .onErrorReturn(throwable -> {
+                    if (stream == playQueue.getItem() && playQueue.size() > 1) {
+                        if (DEBUG) {
+                            Log.d(TAG,
+                                    "MediaSource - Extraction failed for current item, skipping: " + stream.getTitle(),
+                                    throwable);
+                        }
+                        AndroidSchedulers.mainThread().scheduleDirect(playQueue::error);
+                    }
+
                     if (throwable instanceof ExtractionException) {
                         if (throwable instanceof ContentNotAvailableException) {
-                            if (stream == playQueue.getItem()) {
-                                final ManagedMediaSource currentSource = playlist.get(playQueue.indexOf(stream));
-                                if (currentSource instanceof FailedMediaSource) {
-                                    AndroidSchedulers.mainThread().scheduleDirect(playQueue::error);
-                                    return FailedMediaSource.of(stream, new Exception(throwable), Long.MAX_VALUE);
-                                }
-                            }
                             return FailedMediaSource.of(stream, new Exception(throwable),
                                     TimeUnit.MILLISECONDS.convert(3, TimeUnit.SECONDS));
                         }

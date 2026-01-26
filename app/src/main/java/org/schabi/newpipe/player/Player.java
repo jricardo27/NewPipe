@@ -1723,6 +1723,10 @@ public final class Player implements PlaybackListener, Listener {
             } else {
                 simpleExoPlayer.seekToDefaultPosition(playQueueIndex);
             }
+
+            if (simpleExoPlayer.getPlaybackState() == com.google.android.exoplayer2.Player.STATE_IDLE) {
+                simpleExoPlayer.prepare();
+            }
         }
     }
 
