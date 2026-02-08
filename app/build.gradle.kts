@@ -64,10 +64,11 @@ configure<ApplicationExtension> {
             // suffix the app id and the app name with git branch name
             if (normalizedWorkingBranch.isEmpty() || workingBranch in defaultBranches) {
                 applicationIdSuffix = ".debug"
+                resValue("string", "app_name", "NewPipe Debug")
             } else {
                 applicationIdSuffix = ".debug.$normalizedWorkingBranch"
+                resValue("string", "app_name", "NewPipe $workingBranch")
             }
-            resValue("string", "app_name", "NewPipe")
         }
 
         release {
@@ -166,10 +167,10 @@ tasks.register<Checkstyle>("runCheckstyle") {
 
     isShowViolations = true
 
-//    reports {
-//        xml.required = true
-//        html.required = true
-//    }
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 val outputDir = project.layout.buildDirectory.dir("reports/ktlint/")
