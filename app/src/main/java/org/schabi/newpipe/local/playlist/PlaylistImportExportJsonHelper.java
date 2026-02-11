@@ -13,6 +13,7 @@ import org.schabi.newpipe.database.stream.model.StreamEntity;
 import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.local.subscription.services.ImportExportEventListener;
 
+import java.time.OffsetDateTime;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -36,15 +37,29 @@ public final class PlaylistImportExportJsonHelper {
     private static final String JSON_STREAM_UPLOADER_KEY = "uploader";
     private static final String JSON_STREAM_UPLOADER_URL_KEY = "uploader_url";
     private static final String JSON_STREAM_THUMBNAIL_URL_KEY = "thumbnail_url";
+    private static final String JSON_STREAM_PROGRESS_MILLIS_KEY = "progress_millis";
+    private static final String JSON_STREAM_TEXTUAL_UPLOAD_DATE_KEY = "textual_upload_date";
+    private static final String JSON_STREAM_UPLOAD_DATE_KEY = "upload_date";
+    private static final String JSON_STREAM_IS_UPLOAD_DATE_APPROXIMATION_KEY = "is_upload_date_approximation";
 
     private PlaylistImportExportJsonHelper() {
     }
 
+    public static class StreamExportEntry {
+        public StreamEntity streamEntity;
+        public long progressMillis;
+
+        public StreamExportEntry(StreamEntity streamEntity, long progressMillis) {
+            this.streamEntity = streamEntity;
+            this.progressMillis = progressMillis;
+        }
+    }
+
     public static class PlaylistWithStreams {
         public String name;
-        public List<StreamEntity> streams;
+        public List<StreamExportEntry> streams;
 
-        public PlaylistWithStreams(String name, List<StreamEntity> streams) {
+        public PlaylistWithStreams(String name, List<StreamExportEntry> streams) {
             this.name = name;
             this.streams = streams;
         }
@@ -77,11 +92,21 @@ public final class PlaylistImportExportJsonHelper {
                 final String name = playlistObject.getString(JSON_PLAYLIST_NAME_KEY);
                 final JsonArray itemsArray = playlistObject.getArray(JSON_PLAYLIST_ITEMS_KEY);
 
-                final List<StreamEntity> streams = new ArrayList<>();
+                final List<StreamExportEntry> streams = new ArrayList<>();
                 if (itemsArray != null) {
                     for (Object itemObj : itemsArray) {
                         if (itemObj instanceof JsonObject) {
                             JsonObject item = (JsonObject) itemObj;
+
+                            String uploadDateStr = item.getString(JSON_STREAM_UPLOAD_DATE_KEY);
+                            OffsetDateTime uploadDate = null;
+                            if (uploadDateStr != null) {
+                                try {
+                                    uploadDate = OffsetDateTime.parse(uploadDateStr);
+                                } catch (Exception ignored) {
+                                }
+                            }
+
                             StreamEntity stream = new StreamEntity(
                                     0L,
                                     item.getInt(JSON_STREAM_SERVICE_ID_KEY),
@@ -92,8 +117,12 @@ public final class PlaylistImportExportJsonHelper {
                                     item.getString(JSON_STREAM_UPLOADER_KEY),
                                     item.getString(JSON_STREAM_UPLOADER_URL_KEY),
                                     item.getString(JSON_STREAM_THUMBNAIL_URL_KEY),
-                                    null, null, null, null);
-                            streams.add(stream);
+                                    null,
+                                    item.getString(JSON_STREAM_TEXTUAL_UPLOAD_DATE_KEY),
+                                    uploadDate,
+                                    item.getBoolean(JSON_STREAM_IS_UPLOAD_DATE_APPROXIMATION_KEY));
+                            long progress = item.getLong(JSON_STREAM_PROGRESS_MILLIS_KEY, 0);
+                            streams.add(new StreamExportEntry(stream, progress));
                         }
                     }
                 }
@@ -135,7 +164,8 @@ public final class PlaylistImportExportJsonHelper {
             writer.value(JSON_PLAYLIST_NAME_KEY, playlist.name);
 
             writer.array(JSON_PLAYLIST_ITEMS_KEY);
-            for (StreamEntity stream : playlist.streams) {
+            for (StreamExportEntry entry : playlist.streams) {
+                StreamEntity stream = entry.streamEntity;
                 writer.object();
                 writer.value(JSON_STREAM_SERVICE_ID_KEY, stream.getServiceId());
                 writer.value(JSON_STREAM_URL_KEY, stream.getUrl());
@@ -145,6 +175,18 @@ public final class PlaylistImportExportJsonHelper {
                 writer.value(JSON_STREAM_UPLOADER_KEY, stream.getUploader());
                 writer.value(JSON_STREAM_UPLOADER_URL_KEY, stream.getUploaderUrl());
                 writer.value(JSON_STREAM_THUMBNAIL_URL_KEY, stream.getThumbnailUrl());
+                writer.value(JSON_STREAM_PROGRESS_MILLIS_KEY, entry.progressMillis);
+
+                if (stream.getTextualUploadDate() != null) {
+                    writer.value(JSON_STREAM_TEXTUAL_UPLOAD_DATE_KEY, stream.getTextualUploadDate());
+                }
+                if (stream.getUploadDate() != null) {
+                    writer.value(JSON_STREAM_UPLOAD_DATE_KEY, stream.getUploadDate().toString());
+                }
+                if (stream.isUploadDateApproximation() != null) {
+                    writer.value(JSON_STREAM_IS_UPLOAD_DATE_APPROXIMATION_KEY, stream.isUploadDateApproximation());
+                }
+
                 writer.end();
             }
             writer.end();

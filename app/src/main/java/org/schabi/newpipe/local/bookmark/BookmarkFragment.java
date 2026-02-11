@@ -163,7 +163,8 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
                 // We chain imports
                 io.reactivex.rxjava3.core.Observable.fromIterable(playlists)
                         .concatMapMaybe(
-                                playlist -> localPlaylistManager.createPlaylist(playlist.name, playlist.streams)
+                                playlist -> localPlaylistManager
+                                        .createPlaylistWithStates(playlist.name, playlist.streams)
                                         .map(ids -> playlist.name))
                         .toList()
                         .observeOn(AndroidSchedulers.mainThread())

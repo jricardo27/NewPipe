@@ -55,6 +55,9 @@ import org.schabi.newpipe.util.external_communication.ShareUtils;
 import org.schabi.newpipe.util.image.CoilHelper;
 import org.schabi.newpipe.util.text.TextEllipsizer;
 
+import org.schabi.newpipe.database.stream.model.StreamStateEntity;
+import com.google.android.material.tabs.TabLayout;
+import org.schabi.newpipe.local.history.HistoryRecordManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -78,9 +81,11 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
     private RemotePlaylistManager remotePlaylistManager;
     private PlaylistRemoteEntity playlistEntity;
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Views
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Views
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     private PlaylistHeaderBinding headerBinding;
     private PlaylistControlBinding playlistControlBinding;
@@ -89,9 +94,13 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
 
     private long streamCount;
     private long playlistOverallDurationSeconds;
+    private boolean isDurationComplete = false;
+    private List<StreamInfoItem> allItems = new ArrayList<>();
+    private List<StreamStateEntity> streamStates = new ArrayList<>();
+    private int currentTab = 0; // 0: Unwatched, 1: Watched
 
     public static PlaylistFragment getInstance(final int serviceId, final String url,
-                                               final String name) {
+            final String name) {
         final PlaylistFragment instance = new PlaylistFragment();
         instance.setInitialData(serviceId, url, name);
         return instance;
@@ -101,9 +110,11 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
         super(UserAction.REQUESTED_PLAYLIST);
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // LifeCycle
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // LifeCycle
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     public void onCreate(final Bundle savedInstanceState) {
@@ -116,14 +127,16 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
 
     @Override
     public View onCreateView(@NonNull final LayoutInflater inflater,
-                             @Nullable final ViewGroup container,
-                             @Nullable final Bundle savedInstanceState) {
+            @Nullable final ViewGroup container,
+            @Nullable final Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_playlist, container, false);
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Init
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Init
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     protected Supplier<View> getListHeaderSupplier() {
@@ -131,7 +144,34 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
                 .inflate(activity.getLayoutInflater(), itemsList, false);
         playlistControlBinding = headerBinding.playlistControl;
 
-        return headerBinding::getRoot;
+        if (headerBinding != null) {
+            setupTabs();
+            return headerBinding::getRoot;
+        }
+        return null;
+    }
+
+    private void setupTabs() {
+        if (headerBinding.playlistTabs.getTabCount() == 0) {
+            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab().setText(R.string.unwatched));
+            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab().setText(R.string.fully_watched));
+        }
+
+        headerBinding.playlistTabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                currentTab = tab.getPosition();
+                filterItems();
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {
+            }
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {
+            }
+        });
     }
 
     @Override
@@ -151,8 +191,7 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
     protected void showInfoItemDialog(final StreamInfoItem item) {
         final Context context = getContext();
         try {
-            final InfoItemDialog.Builder dialogBuilder =
-                    new InfoItemDialog.Builder(getActivity(), context, this, item);
+            final InfoItemDialog.Builder dialogBuilder = new InfoItemDialog.Builder(getActivity(), context, this, item);
 
             dialogBuilder
                     .setAction(
@@ -168,7 +207,7 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
 
     @Override
     public void onCreateOptionsMenu(@NonNull final Menu menu,
-                                    @NonNull final MenuInflater inflater) {
+            @NonNull final MenuInflater inflater) {
         if (DEBUG) {
             Log.d(TAG, "onCreateOptionsMenu() called with: "
                     + "menu = [" + menu + "], inflater = [" + inflater + "]");
@@ -214,9 +253,11 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
         isBookmarkButtonReady = null;
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Load and handle
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Load and handle
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     protected Single<ListExtractor.InfoItemsPage<StreamInfoItem>> loadMoreItemsLogic() {
@@ -258,10 +299,11 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
         return true;
     }
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Contract
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Contract
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     public void showLoading() {
@@ -276,12 +318,21 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
     @Override
     public void handleNextItems(final ListExtractor.InfoItemsPage result) {
         super.handleNextItems(result);
-        setStreamCountAndOverallDuration(result.getItems(), !result.hasNextPage());
+        for (final var item : result.getItems()) {
+            if (item instanceof StreamInfoItem) {
+                this.allItems.add((StreamInfoItem) item);
+            }
+        }
+        this.isDurationComplete = !result.hasNextPage();
+        loadStatesAndFilter();
     }
 
     @Override
     public void handleResult(@NonNull final PlaylistInfo result) {
         super.handleResult(result);
+
+        this.allItems.clear();
+        this.allItems.addAll(result.getRelatedItems());
 
         animate(headerBinding.getRoot(), true, 100);
         animate(headerBinding.uploaderLayout, true, 300);
@@ -307,7 +358,7 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
 
         if (result.getServiceId() == ServiceList.YouTube.getServiceId()
                 && (YoutubeParsingHelper.isYoutubeMixId(result.getId())
-                || YoutubeParsingHelper.isYoutubeMusicMixId(result.getId()))) {
+                        || YoutubeParsingHelper.isYoutubeMusicMixId(result.getId()))) {
             // this is an auto-generated playlist (e.g. Youtube mix), so a radio is shown
             final ShapeAppearanceModel model = ShapeAppearanceModel.builder()
                     .setAllCorners(CornerFamily.ROUNDED, 0f)
@@ -317,25 +368,22 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
                     .getColorStateList(requireContext(), R.color.transparent_background_color));
             headerBinding.uploaderAvatarView.setImageDrawable(
                     AppCompatResources.getDrawable(requireContext(),
-                    R.drawable.ic_radio)
-            );
+                            R.drawable.ic_radio));
         } else {
             CoilHelper.INSTANCE.loadAvatar(headerBinding.uploaderAvatarView,
                     result.getUploaderAvatars());
         }
 
         streamCount = result.getStreamCount();
-        setStreamCountAndOverallDuration(result.getRelatedItems(), !result.hasNextPage());
+        isDurationComplete = !result.hasNextPage();
 
         final Description description = result.getDescription() != null ? result.getDescription()
                 : Description.EMPTY_DESCRIPTION;
         if (!Description.EMPTY_DESCRIPTION.equals(description)) {
             final TextEllipsizer ellipsizer = new TextEllipsizer(
                     headerBinding.playlistDescription, 5, getServiceById(result.getServiceId()));
-            ellipsizer.setStateChangeListener(isEllipsized ->
-                headerBinding.playlistDescriptionReadMore.setText(
-                        Boolean.TRUE.equals(isEllipsized) ? R.string.show_more : R.string.show_less
-                ));
+            ellipsizer.setStateChangeListener(isEllipsized -> headerBinding.playlistDescriptionReadMore.setText(
+                    Boolean.TRUE.equals(isEllipsized) ? R.string.show_more : R.string.show_less));
             ellipsizer.setOnContentChanged(canBeEllipsized -> {
                 headerBinding.playlistDescriptionReadMore.setVisibility(
                         Boolean.TRUE.equals(canBeEllipsized) ? View.VISIBLE : View.GONE);
@@ -363,6 +411,102 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
                 .subscribe(getPlaylistBookmarkSubscriber());
 
         PlayButtonHelper.initPlaylistControlClickListener(activity, playlistControlBinding, this);
+
+        loadStatesAndFilter();
+    }
+
+    private void loadStatesAndFilter() {
+        final var database = NewPipeDatabase.getInstance(requireContext());
+        disposables.add(io.reactivex.rxjava3.core.Single.fromCallable(() -> {
+            final List<StreamStateEntity> states = new ArrayList<>(allItems.size());
+            for (StreamInfoItem item : allItems) {
+                final List<org.schabi.newpipe.database.stream.model.StreamEntity> streamEntities = database.streamDAO()
+                        .getStream(item.getServiceId(), item.getUrl())
+                        .blockingFirst();
+                if (!streamEntities.isEmpty()) {
+                    final long streamId = streamEntities.get(0).getUid();
+                    final List<StreamStateEntity> stateList = database.streamStateDAO().getState(streamId)
+                            .blockingFirst();
+                    states.add(stateList.isEmpty() ? null : stateList.get(0));
+                } else {
+                    states.add(null);
+                }
+            }
+            return states;
+        })
+                .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(states -> {
+                    this.streamStates = states;
+                    updateTabTitles();
+                    filterItems();
+                    if (isLoading != null) {
+                        isLoading.set(false);
+                    }
+                    hideLoading();
+                }, throwable -> {
+                    filterItems();
+                    hideLoading();
+                }));
+    }
+
+    private void updateTabTitles() {
+        if (headerBinding == null || allItems == null || streamStates == null)
+            return;
+
+        int unwatchedCount = 0;
+        int watchedCount = 0;
+
+        for (int i = 0; i < allItems.size(); i++) {
+            StreamInfoItem entry = allItems.get(i);
+            StreamStateEntity state = (i < streamStates.size()) ? streamStates.get(i) : null;
+            boolean isFinished = state != null && state.isFinished(entry.getDuration());
+            if (isFinished) {
+                watchedCount++;
+            } else {
+                unwatchedCount++;
+            }
+        }
+
+        TabLayout.Tab unwatchedTab = headerBinding.playlistTabs.getTabAt(0);
+        if (unwatchedTab != null) {
+            unwatchedTab.setText(getString(R.string.unwatched) + " (" + unwatchedCount + ")");
+        }
+
+        TabLayout.Tab watchedTab = headerBinding.playlistTabs.getTabAt(1);
+        if (watchedTab != null) {
+            watchedTab.setText(getString(R.string.fully_watched) + " (" + watchedCount + ")");
+        }
+    }
+
+    private void filterItems() {
+        if (infoListAdapter == null || allItems == null)
+            return;
+
+        List<StreamInfoItem> filtered = new ArrayList<>();
+        for (int i = 0; i < allItems.size(); i++) {
+            StreamInfoItem entry = allItems.get(i);
+            StreamStateEntity state = (i < streamStates.size()) ? streamStates.get(i) : null;
+            boolean isFinished = state != null && state.isFinished(entry.getDuration());
+
+            if (currentTab == 0) { // Unwatched
+                if (!isFinished)
+                    filtered.add(entry);
+            } else { // Watched
+                if (isFinished)
+                    filtered.add(entry);
+            }
+        }
+
+        infoListAdapter.clearStreamItemList();
+        infoListAdapter.addInfoItemList(filtered);
+        setStreamCountAndOverallDuration(filtered, isDurationComplete);
+
+        if (filtered.isEmpty()) {
+            showEmptyState();
+        } else if (emptyStateView != null) {
+            animate(emptyStateView, false, 150);
+        }
     }
 
     public PlayQueue getPlayQueue() {
@@ -381,18 +525,19 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
                 currentInfo.getUrl(),
                 currentInfo.getNextPage(),
                 infoItems,
-                index
-        );
+                index);
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Utils
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Utils
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     private Flowable<Integer> getUpdateProcessor(
             @NonNull final List<PlaylistRemoteEntity> playlists,
             @NonNull final PlaylistInfo result) {
-        final Flowable<Integer> noItemToUpdate = Flowable.just(/*noItemToUpdate=*/-1);
+        final Flowable<Integer> noItemToUpdate = Flowable.just(/* noItemToUpdate= */-1);
         if (playlists.isEmpty()) {
             return noItemToUpdate;
         }
@@ -435,7 +580,8 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
             }
 
             @Override
-            public void onComplete() { }
+            public void onComplete() {
+            }
         };
     }
 
@@ -458,15 +604,17 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
         if (currentInfo != null && playlistEntity == null) {
             action = remotePlaylistManager.onBookmark(currentInfo)
                     .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(ignored -> { /* Do nothing */ }, throwable ->
-                            showError(new ErrorInfo(throwable, UserAction.REQUESTED_BOOKMARK,
+                    .subscribe(ignored -> {
+                        /* Do nothing */ },
+                            throwable -> showError(new ErrorInfo(throwable, UserAction.REQUESTED_BOOKMARK,
                                     "Adding playlist bookmark")));
         } else if (playlistEntity != null) {
             action = remotePlaylistManager.deletePlaylist(playlistEntity.getUid())
                     .observeOn(AndroidSchedulers.mainThread())
                     .doFinally(() -> playlistEntity = null)
-                    .subscribe(ignored -> { /* Do nothing */ }, throwable ->
-                            showError(new ErrorInfo(throwable, UserAction.REQUESTED_BOOKMARK,
+                    .subscribe(ignored -> {
+                        /* Do nothing */ },
+                            throwable -> showError(new ErrorInfo(throwable, UserAction.REQUESTED_BOOKMARK,
                                     "Deleting playlist bookmark")));
         } else {
             action = Disposable.empty();
@@ -481,27 +629,28 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
         }
 
         final int drawable = playlistEntity == null
-                ? R.drawable.ic_playlist_add : R.drawable.ic_playlist_add_check;
+                ? R.drawable.ic_playlist_add
+                : R.drawable.ic_playlist_add_check;
 
         final int titleRes = playlistEntity == null
-                ? R.string.bookmark_playlist : R.string.unbookmark_playlist;
+                ? R.string.bookmark_playlist
+                : R.string.unbookmark_playlist;
 
         playlistBookmarkButton.setIcon(drawable);
         playlistBookmarkButton.setTitle(titleRes);
     }
 
     private void setStreamCountAndOverallDuration(final List<StreamInfoItem> list,
-                                                  final boolean isDurationComplete) {
+            final boolean isDurationComplete) {
         if (activity != null && headerBinding != null) {
             playlistOverallDurationSeconds += list.stream()
                     .mapToLong(x -> x.getDuration())
                     .sum();
             headerBinding.playlistStreamCount.setText(
-                Localization.concatenateStrings(
-                    Localization.localizeStreamCount(activity, streamCount),
-                    Localization.getDurationString(playlistOverallDurationSeconds,
-                            isDurationComplete, true))
-            );
+                    Localization.concatenateStrings(
+                            Localization.localizeStreamCount(activity, streamCount),
+                            Localization.getDurationString(playlistOverallDurationSeconds,
+                                    isDurationComplete, true)));
         }
     }
 
