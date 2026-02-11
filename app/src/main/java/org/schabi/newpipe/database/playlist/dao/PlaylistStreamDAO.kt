@@ -76,15 +76,23 @@ interface PlaylistStreamDAO : BasicDAO<PlaylistStreamEntity> {
     @Transaction
     @Query(
         """
-        SELECT uid, name, is_thumbnail_permanent, thumbnail_stream_id, display_index,
+        SELECT playlists.uid, name, is_thumbnail_permanent, thumbnail_stream_id, display_index,
         (SELECT thumbnail_url FROM streams WHERE streams.uid = thumbnail_stream_id) AS thumbnail_url,
 
-        COALESCE(COUNT(playlist_id), 0) AS streamCount FROM playlists
+        COALESCE(COUNT(playlist_id), 0) AS streamCount,
+        (SELECT COUNT(*) FROM playlist_stream_join 
+         INNER JOIN streams ON streams.uid = playlist_stream_join.stream_id
+         LEFT JOIN stream_state ON stream_state.stream_id = streams.uid
+         WHERE playlist_stream_join.playlist_id = playlists.uid
+         AND (stream_state.progress_time IS NULL 
+              OR NOT (stream_state.progress_time >= streams.duration * 1000 - 60000 
+                      AND stream_state.progress_time >= streams.duration * 1000 * 3 / 4))) AS unwatchedCount
+        FROM playlists
 
         LEFT JOIN playlist_stream_join
         ON playlists.uid = playlist_id
 
-        GROUP BY uid
+        GROUP BY playlists.uid
         ORDER BY display_index
         """
     )

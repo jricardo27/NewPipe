@@ -42,4 +42,13 @@ interface StreamStateDAO : BasicDAO<StreamStateEntity> {
         silentInsertInternal(stream)
         return update(stream).toLong()
     }
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun silentInsertAllInternal(streamStates: List<StreamStateEntity>)
+
+    @Transaction
+    fun upsertAll(streamStates: List<StreamStateEntity>) {
+        silentInsertAllInternal(streamStates)
+        update(streamStates)
+    }
 }

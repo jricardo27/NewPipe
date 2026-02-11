@@ -22,22 +22,29 @@ public class LocalPlaylistItemHolder extends PlaylistItemHolder {
     }
 
     LocalPlaylistItemHolder(final LocalItemBuilder infoItemBuilder, final int layoutId,
-                            final ViewGroup parent) {
+            final ViewGroup parent) {
         super(infoItemBuilder, layoutId, parent);
     }
 
     @Override
     public void updateFromItem(final LocalItem localItem,
-                               final HistoryRecordManager historyRecordManager,
-                               final DateTimeFormatter dateTimeFormatter) {
+            final HistoryRecordManager historyRecordManager,
+            final DateTimeFormatter dateTimeFormatter) {
         if (!(localItem instanceof PlaylistMetadataEntry)) {
             return;
         }
         final PlaylistMetadataEntry item = (PlaylistMetadataEntry) localItem;
 
         itemTitleView.setText(item.getOrderingName());
-        itemStreamCountView.setText(Localization.localizeStreamCountMini(
-                itemStreamCountView.getContext(), item.getStreamCount()));
+        final long totalCount = item.getStreamCount();
+        final Long unwatchedCount = item.getUnwatchedCount();
+
+        if (unwatchedCount != null && unwatchedCount > 0 && unwatchedCount < totalCount) {
+            itemStreamCountView.setText(unwatchedCount + " / " + totalCount);
+        } else {
+            itemStreamCountView.setText(Localization.localizeStreamCountMini(
+                    itemStreamCountView.getContext(), totalCount));
+        }
         itemUploaderView.setVisibility(View.INVISIBLE);
 
         PicassoHelper.loadPlaylistThumbnail(item.getThumbnailUrl()).into(itemThumbnailView);

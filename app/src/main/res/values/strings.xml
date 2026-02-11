@@ -815,6 +815,8 @@
     <string name="unknown_quality">Unknown quality</string>
     <string name="unknown_audio_track">Unknown</string>
     <string name="feed_show_watched">Fully watched</string>
+    <string name="unwatched">Unwatched</string>
+    <string name="fully_watched">Watched</string>
     <string name="feed_show_partially_watched">Partially watched</string>
     <string name="feed_show_upcoming">Upcoming</string>
     <string name="sort">Sort</string>
@@ -900,4 +902,9 @@
     <string name="fetching_all_videos">Fetching all videos...</string>
     <string name="fetched_videos_count">Fetched %d videos</string>
     <string name="playlist_add_streams_success_with_name">%1$d videos added to %2$s</string>
+    <string name="split_playlist">Split</string>
+    <string name="split_playlist_select_criteria">Select criteria</string>
+    <string name="split_by_year">Year</string>
+    <string name="split_by_uploader">Uploader</string>
+    <string name="split_playlist_success">Playlist split successfully</string>
 </resources>

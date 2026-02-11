@@ -57,6 +57,10 @@ data class PlaylistRemoteEntity(
     val streamCount: Long?
 ) : PlaylistLocalItem {
 
+    override var unwatchedCount: Long?
+        get() = null
+        set(_) {}
+
     constructor(playlistInfo: PlaylistInfo) : this(
         serviceId = playlistInfo.serviceId,
         orderingName = playlistInfo.name,

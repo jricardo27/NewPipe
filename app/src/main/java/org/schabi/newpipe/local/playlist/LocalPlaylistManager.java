@@ -28,12 +28,48 @@ public class LocalPlaylistManager {
     private final StreamDAO streamTable;
     private final PlaylistDAO playlistTable;
     private final PlaylistStreamDAO playlistStreamTable;
+    private final org.schabi.newpipe.database.stream.dao.StreamStateDAO streamStateTable;
 
     public LocalPlaylistManager(final AppDatabase db) {
         database = db;
         streamTable = db.streamDAO();
         playlistTable = db.playlistDAO();
         playlistStreamTable = db.playlistStreamDAO();
+        streamStateTable = db.streamStateDAO();
+    }
+
+    public Maybe<List<Long>> createPlaylistWithStates(final String name,
+            final List<PlaylistImportExportJsonHelper.StreamExportEntry> streams) {
+        if (streams.isEmpty()) {
+            return Maybe.empty();
+        }
+
+        return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+            final List<StreamEntity> streamEntities = new ArrayList<>(streams.size());
+            for (PlaylistImportExportJsonHelper.StreamExportEntry stream : streams) {
+                streamEntities.add(stream.streamEntity);
+            }
+
+            final List<Long> streamIds = streamTable.upsertAll(streamEntities);
+
+            // Update stream states
+            final List<org.schabi.newpipe.database.stream.model.StreamStateEntity> states = new ArrayList<>();
+            for (int i = 0; i < streamIds.size(); i++) {
+                long progress = streams.get(i).progressMillis;
+                if (progress > 0) {
+                    states.add(new org.schabi.newpipe.database.stream.model.StreamStateEntity(
+                            streamIds.get(i), progress));
+                }
+            }
+            if (!states.isEmpty()) {
+                streamStateTable.upsertAll(states);
+            }
+
+            final PlaylistEntity newPlaylist = new PlaylistEntity(name, false,
+                    streamIds.get(0), -1);
+
+            return insertJoinEntities(playlistTable.insert(newPlaylist), streamIds, 0);
+        })).subscribeOn(Schedulers.io());
     }
 
     public Maybe<List<Long>> createPlaylist(final String name, final List<StreamEntity> streams) {
@@ -147,9 +183,17 @@ public class LocalPlaylistManager {
     public io.reactivex.rxjava3.core.Single<List<PlaylistImportExportJsonHelper.PlaylistWithStreams>> getAllPlaylistsWithStreams() {
         return getPlaylists().firstOrError()
                 .flatMapObservable(io.reactivex.rxjava3.core.Observable::fromIterable)
-                .flatMapSingle(playlist -> getPlaylistStreamEntities(playlist.getUid()).firstOrError()
-                        .map(streams -> new PlaylistImportExportJsonHelper.PlaylistWithStreams(
-                                playlist.getOrderingName(), streams)))
+                .flatMapSingle(playlist -> getPlaylistStreams(playlist.getUid()).firstOrError()
+                        .map(entries -> {
+                            final List<PlaylistImportExportJsonHelper.StreamExportEntry> exportEntries = new ArrayList<>(
+                                    entries.size());
+                            for (org.schabi.newpipe.database.playlist.PlaylistStreamEntry entry : entries) {
+                                exportEntries.add(new PlaylistImportExportJsonHelper.StreamExportEntry(
+                                        entry.getStreamEntity(), entry.getProgressMillis()));
+                            }
+                            return new PlaylistImportExportJsonHelper.PlaylistWithStreams(
+                                    playlist.getOrderingName(), exportEntries);
+                        }))
                 .toList();
     }
 

@@ -7,6 +7,7 @@
 package org.schabi.newpipe.database.playlist
 
 import androidx.room.ColumnInfo
+import androidx.room.Ignore
 import org.schabi.newpipe.database.playlist.model.PlaylistEntity
 
 /**
@@ -46,8 +47,12 @@ data class PlaylistDuplicatesEntry(
     isThumbnailPermanent = isThumbnailPermanent,
     thumbnailStreamId = thumbnailStreamId,
     displayIndex = displayIndex,
-    streamCount = streamCount
+    streamCount = streamCount,
+    unwatchedCount = null
 ) {
+    @Ignore
+    override var unwatchedCount: Long? = null
+
     companion object {
         const val PLAYLIST_TIMES_STREAM_IS_CONTAINED: String = "timesStreamIsContained"
     }
