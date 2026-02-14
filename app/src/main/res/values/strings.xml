@@ -906,5 +906,13 @@
     <string name="split_playlist_select_criteria">Select criteria</string>
     <string name="split_by_year">Year</string>
     <string name="split_by_uploader">Uploader</string>
+    <string name="split_by_service">Service</string>
+    <string name="split_by_stream_type">Stream type</string>
+    <string name="split_by_duration">Duration</string>
+    <string name="duration_short">Short (&lt; 5 min)</string>
+    <string name="duration_medium">Medium (5 - 20 min)</string>
+    <string name="duration_long">Long (&gt; 20 min)</string>
     <string name="split_playlist_success">Playlist split successfully</string>
+    <string name="split_by_count">Number of videos</string>
+    <string name="split_playlist_max_videos">Max videos per playlist</string>
 </resources>

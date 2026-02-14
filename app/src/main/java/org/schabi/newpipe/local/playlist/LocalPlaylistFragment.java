@@ -24,7 +24,9 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.ArrayAdapter;
 import android.widget.LinearLayout.LayoutParams;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -44,6 +46,7 @@ import org.schabi.newpipe.database.playlist.PlaylistStreamEntry;
 import org.schabi.newpipe.database.playlist.model.PlaylistEntity;
 import org.schabi.newpipe.database.stream.model.StreamEntity;
 import org.schabi.newpipe.databinding.DialogEditTextBinding;
+import org.schabi.newpipe.databinding.DialogSplitPlaylistBinding;
 import org.schabi.newpipe.databinding.LocalPlaylistHeaderBinding;
 import org.schabi.newpipe.databinding.PlaylistControlBinding;
 import org.schabi.newpipe.error.ErrorInfo;
@@ -71,6 +74,7 @@ import org.schabi.newpipe.util.debounce.DebounceSavable;
 import org.schabi.newpipe.util.debounce.DebounceSaver;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
 
+import org.schabi.newpipe.util.ServiceHelper;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import org.schabi.newpipe.local.playlist.PlaylistImportExportJsonHelper;
@@ -1183,20 +1187,41 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     }
 
     private void showSplitPlaylistDialog() {
-        final CharSequence[] items = {
+        final DialogSplitPlaylistBinding binding = DialogSplitPlaylistBinding.inflate(getLayoutInflater());
+        final String[] items = {
                 getString(R.string.split_by_year),
-                getString(R.string.split_by_uploader)
+                getString(R.string.split_by_uploader),
+                getString(R.string.split_by_service),
+                getString(R.string.split_by_stream_type),
+                getString(R.string.split_by_duration),
+                getString(R.string.split_by_count)
         };
 
+        final ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, items);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        binding.splitCriteriaSpinner.setAdapter(adapter);
+
         new AlertDialog.Builder(requireContext())
-                .setTitle(R.string.split_playlist_select_criteria)
-                .setItems(items, (dialog, which) -> {
-                    splitPlaylist(which == 0);
+                .setTitle(R.string.split_playlist)
+                .setView(binding.getRoot())
+                .setPositiveButton(R.string.ok, (dialog, which) -> {
+                    final int criteria = binding.splitCriteriaSpinner.getSelectedItemPosition();
+                    int maxVideos = 1000;
+                    try {
+                        final String maxText = binding.splitMaxVideos.getText().toString();
+                        if (!TextUtils.isEmpty(maxText)) {
+                            maxVideos = Integer.parseInt(maxText);
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
+                    splitPlaylist(criteria, maxVideos);
                 })
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
-    private void splitPlaylist(boolean byYear) {
+    private void splitPlaylist(int criteria, int maxVideos) {
         if (allItems.isEmpty()) {
             return;
         }
@@ -1209,26 +1234,53 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                 final StreamEntity stream = entry.getStreamEntity();
                 String key = null;
 
-                if (byYear) {
-                    if (stream.getUploadDate() != null) {
-                        key = String.valueOf(stream.getUploadDate().getYear());
-                    } else if (stream.getTextualUploadDate() != null) {
-                        // try to extract year: "2010-05-20" -> "2010"
-                        // or "5 years ago" -> "Unknown Year"
-                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b(\\d{4})\\b")
-                                .matcher(stream.getTextualUploadDate());
-                        if (m.find()) {
-                            key = m.group(1);
+                switch (criteria) {
+                    case 0: // Year
+                        if (stream.getUploadDate() != null) {
+                            key = String.valueOf(stream.getUploadDate().getYear());
+                        } else if (stream.getTextualUploadDate() != null) {
+                            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b(\\d{4})\\b")
+                                    .matcher(stream.getTextualUploadDate());
+                            if (m.find()) {
+                                key = m.group(1);
+                            }
                         }
-                    }
-                    if (key == null) {
-                        key = "Unknown Year";
-                    }
-                } else {
-                    key = stream.getUploader();
-                    if (key == null || key.isEmpty()) {
-                        key = "Unknown Uploader";
-                    }
+                        break;
+                    case 1: // Uploader
+                        key = stream.getUploader();
+                        break;
+                    case 2: // Service
+                        key = ServiceHelper.getNameOfServiceById(stream.getServiceId());
+                        break;
+                    case 3: // Stream Type
+                        key = stream.getStreamType().toString();
+                        if ("VIDEO_STREAM".equals(key)) {
+                            key = getString(R.string.video);
+                        } else if ("AUDIO_STREAM".equals(key)) {
+                            key = getString(R.string.audio);
+                        } else if ("LIVE_STREAM".equals(key)) {
+                            key = getString(R.string.duration_live);
+                        }
+                        break;
+                    case 4: // Duration
+                        long duration = stream.getDuration();
+                        if (duration <= 0) {
+                            key = getString(R.string.duration_live);
+                        } else if (duration < 300) { // < 5 min
+                            key = getString(R.string.duration_short);
+                        } else if (duration < 1200) { // 5 - 20 min
+                            key = getString(R.string.duration_medium);
+                        } else {
+                            key = getString(R.string.duration_long);
+                        }
+                        break;
+                    case 5: // Count
+                        key = ""; // All in one group
+                        break;
+                }
+
+                if (key == null || key.isEmpty()) {
+                    key = criteria == 5 ? "" : getString(R.string.unknown_content);
                 }
 
                 if (!grouped.containsKey(key)) {
@@ -1240,10 +1292,25 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             return grouped;
         })
                 .flatMapPublisher(grouped -> Flowable.fromIterable(grouped.entrySet()))
-                .concatMapMaybe(entry -> {
-                    final String playlistName = name + " - " + entry.getKey();
-                    return playlistManager.createPlaylistWithStates(playlistName, entry.getValue())
-                            .map(ids -> playlistName);
+                .flatMap(entry -> {
+                    final List<PlaylistImportExportJsonHelper.StreamExportEntry> list = entry.getValue();
+                    final List<List<PlaylistImportExportJsonHelper.StreamExportEntry>> chunks = new ArrayList<>();
+                    final int limit = Math.max(1, maxVideos);
+                    for (int i = 0; i < list.size(); i += limit) {
+                        chunks.add(list.subList(i, Math.min(i + limit, list.size())));
+                    }
+
+                    return Flowable.fromIterable(chunks)
+                            .zipWith(Flowable.range(1, chunks.size()), (chunk, part) -> {
+                                String key = entry.getKey();
+                                String baseName = key.isEmpty() ? name : name + " - " + key;
+                                String partSuffix = chunks.size() > 1 ? " (" + part + ")" : "";
+                                return new Pair<>(baseName + partSuffix, chunk);
+                            });
+                })
+                .concatMapMaybe(pair -> {
+                    return playlistManager.createPlaylistWithStates(pair.first, pair.second)
+                            .map(ids -> pair.first);
                 })
                 .toList()
                 .subscribeOn(Schedulers.io())
