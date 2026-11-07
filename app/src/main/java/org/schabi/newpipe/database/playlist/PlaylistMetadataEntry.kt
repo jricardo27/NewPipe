@@ -30,7 +30,10 @@ open class PlaylistMetadataEntry(
     open val thumbnailStreamId: Long?,
 
     @ColumnInfo(name = PLAYLIST_STREAM_COUNT)
-    open val streamCount: Long
+    open val streamCount: Long,
+
+    @ColumnInfo(name = PLAYLIST_UNWATCHED_COUNT)
+    override var unwatchedCount: Long?
 ) : PlaylistLocalItem {
 
     override val localItemType: LocalItemType
@@ -38,5 +41,6 @@ open class PlaylistMetadataEntry(
 
     companion object {
         const val PLAYLIST_STREAM_COUNT: String = "streamCount"
+        const val PLAYLIST_UNWATCHED_COUNT: String = "unwatchedCount"
     }
 }

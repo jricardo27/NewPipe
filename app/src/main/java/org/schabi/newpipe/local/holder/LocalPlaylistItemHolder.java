@@ -22,7 +22,7 @@ public class LocalPlaylistItemHolder extends PlaylistItemHolder {
     }
 
     LocalPlaylistItemHolder(final LocalItemBuilder infoItemBuilder, final int layoutId,
-                            final ViewGroup parent) {
+            final ViewGroup parent) {
         super(infoItemBuilder, layoutId, parent);
     }
 
@@ -35,8 +35,15 @@ public class LocalPlaylistItemHolder extends PlaylistItemHolder {
         }
 
         itemTitleView.setText(item.getOrderingName());
-        itemStreamCountView.setText(Localization.localizeStreamCountMini(
-                itemStreamCountView.getContext(), item.getStreamCount()));
+        final long totalCount = item.getStreamCount();
+        final Long unwatchedCount = item.getUnwatchedCount();
+
+        if (unwatchedCount != null && unwatchedCount > 0 && unwatchedCount < totalCount) {
+            itemStreamCountView.setText(unwatchedCount + " / " + totalCount);
+        } else {
+            itemStreamCountView.setText(Localization.localizeStreamCountMini(
+                    itemStreamCountView.getContext(), totalCount));
+        }
         itemUploaderView.setVisibility(View.INVISIBLE);
 
         CoilHelper.INSTANCE.loadPlaylistThumbnail(itemThumbnailView, item.getThumbnailUrl());

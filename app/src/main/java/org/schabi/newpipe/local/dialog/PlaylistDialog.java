@@ -36,9 +36,11 @@ public abstract class PlaylistDialog extends DialogFragment implements StateSave
 
     private org.schabi.newpipe.util.SavedState savedState;
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // LifeCycle
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // LifeCycle
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     public void onCreate(@Nullable final Bundle savedInstanceState) {
@@ -60,11 +62,12 @@ public abstract class PlaylistDialog extends DialogFragment implements StateSave
     @Override
     public Dialog onCreateDialog(final Bundle savedInstanceState) {
         final Dialog dialog = super.onCreateDialog(savedInstanceState);
-        //remove title
+        // remove title
         final Window window = dialog.getWindow();
         if (window != null) {
             window.requestFeature(Window.FEATURE_NO_TITLE);
         }
+        dialog.setCanceledOnTouchOutside(false);
         return dialog;
     }
 
@@ -76,9 +79,11 @@ public abstract class PlaylistDialog extends DialogFragment implements StateSave
         }
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // State Saving
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // State Saving
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Override
     public String generateSuffix() {
@@ -106,9 +111,11 @@ public abstract class PlaylistDialog extends DialogFragment implements StateSave
         }
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Getter + Setter
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Getter + Setter
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     @Nullable
     public DialogInterface.OnDismissListener getOnDismissListener() {
@@ -116,8 +123,7 @@ public abstract class PlaylistDialog extends DialogFragment implements StateSave
     }
 
     public void setOnDismissListener(
-            @Nullable final DialogInterface.OnDismissListener onDismissListener
-    ) {
+            @Nullable final DialogInterface.OnDismissListener onDismissListener) {
         this.onDismissListener = onDismissListener;
     }
 
@@ -125,9 +131,11 @@ public abstract class PlaylistDialog extends DialogFragment implements StateSave
         this.streamEntities = streamEntities;
     }
 
-    /*//////////////////////////////////////////////////////////////////////////
-    // Dialog creation
-    //////////////////////////////////////////////////////////////////////////*/
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Dialog creation
+     * //////////////////////////////////////////////////////////////////////////
+     */
 
     /**
      * Creates a {@link PlaylistAppendDialog} when playlists exists,
@@ -135,7 +143,8 @@ public abstract class PlaylistDialog extends DialogFragment implements StateSave
      *
      * @param context        context used for accessing the database
      * @param streamEntities used for crating the dialog
-     * @param onExec         execution that should occur after a dialog got created, e.g. showing it
+     * @param onExec         execution that should occur after a dialog got created,
+     *                       e.g. showing it
      * @return the disposable that was created
      */
     public static Disposable createCorrespondingDialog(
@@ -146,19 +155,19 @@ public abstract class PlaylistDialog extends DialogFragment implements StateSave
         return new LocalPlaylistManager(NewPipeDatabase.getInstance(context))
                 .hasPlaylists()
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(hasPlaylists ->
-                        onExec.accept(hasPlaylists
-                                ? PlaylistAppendDialog.newInstance(streamEntities)
-                                : PlaylistCreationDialog.newInstance(streamEntities))
-                );
+                .subscribe(hasPlaylists -> onExec.accept(hasPlaylists
+                        ? PlaylistAppendDialog.newInstance(streamEntities)
+                        : PlaylistCreationDialog.newInstance(streamEntities)));
     }
 
     /**
      * Creates a {@link PlaylistAppendDialog} when playlists exists,
-     * otherwise a {@link PlaylistCreationDialog}. If the player's play queue is null or empty, no
+     * otherwise a {@link PlaylistCreationDialog}. If the player's play queue is
+     * null or empty, no
      * dialog will be created.
      *
-     * @param player          the player from which to extract the context and the play queue
+     * @param player          the player from which to extract the context and the
+     *                        play queue
      * @param fragmentManager the fragment manager to use to show the dialog
      * @return the disposable that was created
      */

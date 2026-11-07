@@ -28,13 +28,17 @@ public class LockManager {
             return;
         }
 
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
-        wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, TAG);
+        if (wakeLock == null && powerManager != null) {
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
+        }
+        if (wifiLock == null && wifiManager != null) {
+            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, TAG);
+        }
 
-        if (wakeLock != null) {
+        if (wakeLock != null && !wakeLock.isHeld()) {
             wakeLock.acquire();
         }
-        if (wifiLock != null) {
+        if (wifiLock != null && !wifiLock.isHeld()) {
             wifiLock.acquire();
         }
     }

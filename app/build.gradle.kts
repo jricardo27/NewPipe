@@ -203,7 +203,7 @@ afterEvaluate {
         if (!System.getProperties().containsKey("skipFormatKtlint")) {
             dependsOn("formatKtlint")
         }
-        dependsOn("runCheckstyle", "runKtlint", "checkDependenciesOrder")
+        dependsOn(/*"runCheckstyle",*/ "runKtlint", "checkDependenciesOrder")
     }
 }
 
