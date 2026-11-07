@@ -940,6 +940,8 @@
     <string name="split_playlist_max_videos">Max videos per playlist</string>
     <string name="split_invalid_max_videos">Invalid maximum video count</string>
     <string name="player_error_item_skipped">Skipped: %1$s</string>
+    <string name="no_unwatched_streams">No unwatched streams</string>
+    <string name="no_fully_watched_streams">No fully watched streams</string>
     <string name="no_playlists_found_in_file">No playlists found in file</string>
     <plurals name="imported_playlists">
         <item quantity="one">Imported %d playlist</item>

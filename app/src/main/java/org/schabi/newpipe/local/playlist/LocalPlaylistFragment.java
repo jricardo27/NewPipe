@@ -117,9 +117,11 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     private static final int TAB_UNWATCHED = 1;
     private static final int TAB_WATCHED = 2;
 
+    @State
+    protected int currentTab = TAB_ALL;
+
     private List<PlaylistStreamEntry> allItems = new ArrayList<>();
     private Map<Long, StreamStateEntity> streamStates = new HashMap<>();
-    private int currentTab = TAB_ALL;
 
     private ItemTouchHelper itemTouchHelper;
 
@@ -265,6 +267,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                     .setText(R.string.unwatched));
             headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab()
                     .setText(R.string.fully_watched));
+            headerBinding.playlistTabs.selectTab(
+                    headerBinding.playlistTabs.getTabAt(currentTab));
 
             headerBinding.playlistTabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
                 @Override
@@ -632,6 +636,11 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         setStreamCountAndOverallDuration(new ArrayList<>(filtered));
 
         if (filtered.isEmpty()) {
+            if (!allItems.isEmpty()) {
+                setEmptyStateMessage(currentTab == TAB_WATCHED
+                        ? R.string.no_fully_watched_streams
+                        : R.string.no_unwatched_streams);
+            }
             showEmptyState();
         } else if (emptyStateView != null) {
             animate(emptyStateView, false, 150);
@@ -776,6 +785,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
         itemListAdapter.removeItem(item);
         allItems.remove(item);
+        updateTabTitles();
         if (playlistManager.getPlaylistThumbnailStreamId(playlistId) == item.getStreamId()) {
             updateThumbnailUrl();
         }

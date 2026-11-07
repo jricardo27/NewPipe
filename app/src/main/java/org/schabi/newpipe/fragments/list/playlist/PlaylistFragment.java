@@ -25,6 +25,7 @@ import com.google.android.material.shape.ShapeAppearanceModel;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.schabi.newpipe.NewPipeDatabase;
+import com.evernote.android.state.State;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.database.playlist.model.PlaylistRemoteEntity;
 import org.schabi.newpipe.database.stream.model.StreamEntity;
@@ -99,9 +100,11 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
     private static final int TAB_UNWATCHED = 1;
     private static final int TAB_WATCHED = 2;
 
+    @State
+    protected int currentTab = TAB_ALL;
+
     private List<StreamInfoItem> allItems = new ArrayList<>();
     private List<StreamStateEntity> streamStates = new ArrayList<>();
-    private int currentTab = TAB_ALL;
 
     public static PlaylistFragment getInstance(final int serviceId, final String url,
             final String name) {
@@ -163,6 +166,8 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
                     .setText(R.string.unwatched));
             headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab()
                     .setText(R.string.fully_watched));
+            headerBinding.playlistTabs.selectTab(
+                    headerBinding.playlistTabs.getTabAt(currentTab));
 
             headerBinding.playlistTabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
                 @Override
@@ -512,6 +517,11 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
         setStreamCountAndOverallDuration(filtered, isDurationComplete);
 
         if (filtered.isEmpty()) {
+            if (!allItems.isEmpty()) {
+                setEmptyStateMessage(currentTab == TAB_WATCHED
+                        ? R.string.no_fully_watched_streams
+                        : R.string.no_unwatched_streams);
+            }
             showEmptyState();
         } else if (emptyStateView != null) {
             animate(emptyStateView, false, 150);
