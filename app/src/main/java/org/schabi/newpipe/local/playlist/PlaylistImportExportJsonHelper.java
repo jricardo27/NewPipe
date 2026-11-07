@@ -34,6 +34,7 @@ public final class PlaylistImportExportJsonHelper {
     private static final String JSON_STREAM_UPLOADER_KEY = "uploader";
     private static final String JSON_STREAM_UPLOADER_URL_KEY = "uploader_url";
     private static final String JSON_STREAM_THUMBNAIL_URL_KEY = "thumbnail_url";
+    private static final String JSON_STREAM_VIEW_COUNT_KEY = "view_count";
     private static final String JSON_STREAM_PROGRESS_MILLIS_KEY = "progress_millis";
     private static final String JSON_STREAM_TEXTUAL_UPLOAD_DATE_KEY = "textual_upload_date";
     private static final String JSON_STREAM_UPLOAD_DATE_KEY = "upload_date";
@@ -99,6 +100,9 @@ public final class PlaylistImportExportJsonHelper {
                                 }
                             }
 
+                            final Number viewCount =
+                                    (Number) item.get(JSON_STREAM_VIEW_COUNT_KEY);
+
                             StreamEntity stream = new StreamEntity(
                                     0L,
                                     item.getInt(JSON_STREAM_SERVICE_ID_KEY),
@@ -109,7 +113,7 @@ public final class PlaylistImportExportJsonHelper {
                                     item.getString(JSON_STREAM_UPLOADER_KEY),
                                     item.getString(JSON_STREAM_UPLOADER_URL_KEY),
                                     item.getString(JSON_STREAM_THUMBNAIL_URL_KEY),
-                                    null,
+                                    viewCount == null ? null : viewCount.longValue(),
                                     item.getString(JSON_STREAM_TEXTUAL_UPLOAD_DATE_KEY),
                                     uploadDate,
                                     item.getBoolean(JSON_STREAM_IS_UPLOAD_DATE_APPROXIMATION_KEY));
@@ -161,6 +165,9 @@ public final class PlaylistImportExportJsonHelper {
                 writer.value(JSON_STREAM_THUMBNAIL_URL_KEY, stream.getThumbnailUrl());
                 writer.value(JSON_STREAM_PROGRESS_MILLIS_KEY, entry.progressMillis);
 
+                if (stream.getViewCount() != null) {
+                    writer.value(JSON_STREAM_VIEW_COUNT_KEY, stream.getViewCount());
+                }
                 if (stream.getTextualUploadDate() != null) {
                     writer.value(JSON_STREAM_TEXTUAL_UPLOAD_DATE_KEY, stream.getTextualUploadDate());
                 }

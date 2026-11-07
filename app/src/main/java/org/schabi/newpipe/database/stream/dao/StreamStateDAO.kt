@@ -34,6 +34,11 @@ interface StreamStateDAO : BasicDAO<StreamStateEntity> {
     @Query("SELECT * FROM " + StreamStateEntity.STREAM_STATE_TABLE + " WHERE " + StreamStateEntity.JOIN_STREAM_ID + " = :streamId")
     fun getState(streamId: Long): Flowable<MutableList<StreamStateEntity>>
 
+    @Query("SELECT * FROM " + StreamStateEntity.STREAM_STATE_TABLE + " WHERE " + StreamStateEntity.JOIN_STREAM_ID + " IN (:streamIds)")
+    fun getStates(streamIds: List<Long>): List<StreamStateEntity>
+
+    fun getStatesChunked(streamIds: List<Long>): List<StreamStateEntity> = streamIds.chunked(900).flatMap { getStates(it) }
+
     @Query("DELETE FROM " + StreamStateEntity.STREAM_STATE_TABLE + " WHERE " + StreamStateEntity.JOIN_STREAM_ID + " = :streamId")
     fun deleteState(streamId: Long): Int
 

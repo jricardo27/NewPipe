@@ -643,6 +643,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             }
             showEmptyState();
         } else if (emptyStateView != null) {
+            animate(itemsList, true, 150);
             animate(emptyStateView, false, 150);
         }
     }
@@ -873,13 +874,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                 final int targetIndex = target.getBindingAdapterPosition();
                 final boolean isSwapped = itemListAdapter.swapItems(sourceIndex, targetIndex);
                 if (isSwapped) {
-                    if (currentTab == TAB_ALL) {
-                        if (sourceIndex < allItems.size() && targetIndex < allItems.size()) {
-                            Collections.swap(allItems, sourceIndex, targetIndex);
-                        }
-                    } else {
-                        applyFilteredOrderToAllItems();
-                    }
+                    applyFilteredOrderToAllItems();
                     debounceSaver.setHasChangesToSave();
                 }
                 return isSwapped;

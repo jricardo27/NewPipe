@@ -32,6 +32,9 @@ abstract class StreamDAO : BasicDAO<StreamEntity> {
     @Query("SELECT * FROM streams WHERE url = :url AND service_id = :serviceId")
     abstract fun getStream(serviceId: Long, url: String): Flowable<List<StreamEntity>>
 
+    @Query("SELECT * FROM streams WHERE service_id = :serviceId AND url IN (:urls)")
+    abstract fun getStreamsByServiceAndUrls(serviceId: Int, urls: List<String>): List<StreamEntity>
+
     @Query("UPDATE streams SET uploader_url = :uploaderUrl WHERE url = :url AND service_id = :serviceId")
     abstract fun setUploaderUrl(serviceId: Long, url: String, uploaderUrl: String): Completable
 

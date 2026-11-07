@@ -128,32 +128,77 @@ class LocalPlaylistManager(private val database: AppDatabase) {
         name: String,
         streams: List<PlaylistImportExportJsonHelper.StreamExportEntry>
     ): Maybe<List<Long>> {
-        // Disallow creation of empty playlists
-        if (streams.isEmpty()) {
-            return Maybe.empty()
-        }
-
         return rxMaybe(Dispatchers.IO) {
             database.withWriteTransaction {
-                val streamEntities = streams.map { it.streamEntity }
-                val streamIds = streamTable.upsertAll(streamEntities)
+                if (streams.isEmpty()) {
+                    // Keep empty playlists on import instead of dropping them
+                    listOf(
+                        playlistTable.insert(
+                            PlaylistEntity(
+                                name = name,
+                                isThumbnailPermanent = false,
+                                thumbnailStreamId = PlaylistEntity.DEFAULT_THUMBNAIL_ID,
+                                displayIndex = -1
+                            )
+                        )
+                    )
+                } else {
+                    // Fields an export may not carry keep their stored values
+                    val existingByKey = streams
+                        .groupBy { it.streamEntity.serviceId }
+                        .flatMap { (serviceId, group) ->
+                            group.map { it.streamEntity.url }
+                                .chunked(900)
+                                .flatMap { urls ->
+                                    streamTable.getStreamsByServiceAndUrls(serviceId, urls)
+                                }
+                        }
+                        .associateBy { it.serviceId to it.url }
+                    val streamEntities = streams.map { entry ->
+                        val existing = existingByKey[
+                            entry.streamEntity.serviceId to entry.streamEntity.url
+                        ]
+                        if (existing == null) {
+                            entry.streamEntity
+                        } else {
+                            entry.streamEntity.copy(
+                                viewCount = entry.streamEntity.viewCount ?: existing.viewCount,
+                                uploaderUrl = entry.streamEntity.uploaderUrl
+                                    ?: existing.uploaderUrl,
+                                thumbnailUrl = entry.streamEntity.thumbnailUrl
+                                    ?: existing.thumbnailUrl,
+                                textualUploadDate = entry.streamEntity.textualUploadDate
+                                    ?: existing.textualUploadDate,
+                                uploadDate = entry.streamEntity.uploadDate ?: existing.uploadDate,
+                                isUploadDateApproximation = entry.streamEntity
+                                    .isUploadDateApproximation
+                                    ?: existing.isUploadDateApproximation
+                            )
+                        }
+                    }
+                    val streamIds = streamTable.upsertAll(streamEntities)
 
-                val states = streamIds.mapIndexedNotNull { index, streamId ->
-                    streams[index].progressMillis
-                        .takeIf { it > 0 }
-                        ?.let { StreamStateEntity(streamId, it) }
-                }
-                if (states.isNotEmpty()) {
-                    streamStateTable.upsertAll(states)
-                }
+                    // Never overwrite progress already recorded on this device
+                    val existingStateIds = streamStateTable.getStatesChunked(streamIds)
+                        .map { it.streamUid }
+                        .toSet()
+                    val states = streamIds.mapIndexedNotNull { index, streamId ->
+                        streams[index].progressMillis
+                            .takeIf { it > 0 && streamId !in existingStateIds }
+                            ?.let { StreamStateEntity(streamId, it) }
+                    }
+                    if (states.isNotEmpty()) {
+                        streamStateTable.upsertAll(states)
+                    }
 
-                val newPlaylist = PlaylistEntity(
-                    name = name,
-                    isThumbnailPermanent = false,
-                    thumbnailStreamId = streamIds[0],
-                    displayIndex = -1
-                )
-                insertJoinEntities(playlistTable.insert(newPlaylist), streamIds, 0)
+                    val newPlaylist = PlaylistEntity(
+                        name = name,
+                        isThumbnailPermanent = false,
+                        thumbnailStreamId = streamIds[0],
+                        displayIndex = -1
+                    )
+                    insertJoinEntities(playlistTable.insert(newPlaylist), streamIds, 0)
+                }
             }
         }
     }

@@ -342,10 +342,20 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
 
     @Override
     public void handleResult(@NonNull final PlaylistInfo result) {
+        // When the view is recreated the adapter still holds every loaded page
+        final List<InfoItem> restoredItems = new ArrayList<>(infoListAdapter.getItemsList());
         super.handleResult(result);
 
         this.allItems.clear();
-        this.allItems.addAll(result.getRelatedItems());
+        if (restoredItems.stream().anyMatch(item -> item instanceof StreamInfoItem)) {
+            for (final InfoItem item : restoredItems) {
+                if (item instanceof StreamInfoItem) {
+                    this.allItems.add((StreamInfoItem) item);
+                }
+            }
+        } else {
+            this.allItems.addAll(result.getRelatedItems());
+        }
 
         animate(headerBinding.getRoot(), true, 100);
         animate(headerBinding.uploaderLayout, true, 300);
@@ -514,6 +524,7 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
 
         infoListAdapter.clearStreamItemList();
         infoListAdapter.addInfoItemList(filtered);
+        playlistOverallDurationSeconds = 0;
         setStreamCountAndOverallDuration(filtered, isDurationComplete);
 
         if (filtered.isEmpty()) {
@@ -524,6 +535,7 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
             }
             showEmptyState();
         } else if (emptyStateView != null) {
+            animate(itemsList, true, 150);
             animate(emptyStateView, false, 150);
         }
     }
