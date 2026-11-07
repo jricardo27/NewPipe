@@ -63,4 +63,16 @@ object FilenameUtils {
     ): String {
         return title.replace(invalidCharacters.toRegex(), replacementChar)
     }
+
+    /**
+     * Removes characters that are illegal in filenames on common filesystems,
+     * replacing each with an underscore.
+     *
+     * @param title the title to create a filename from
+     * @return a filesystem-safe filename
+     */
+    @JvmStatic
+    fun sanitizeFilename(title: String): String {
+        return title.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+    }
 }

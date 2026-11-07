@@ -144,7 +144,7 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
         }
     }
 
-    private static String uniquePlaylistName(final String name,
+    static String uniquePlaylistName(final String name,
             final java.util.Set<String> usedNames) {
         if (usedNames.add(name)) {
             return name;

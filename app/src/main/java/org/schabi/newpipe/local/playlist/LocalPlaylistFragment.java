@@ -64,6 +64,8 @@ import org.schabi.newpipe.player.playqueue.SinglePlayQueue;
 import com.google.android.material.tabs.TabLayout;
 import org.schabi.newpipe.database.stream.model.StreamStateEntity;
 import java.util.ArrayList;
+import org.schabi.newpipe.util.FilenameUtils;
+import org.schabi.newpipe.util.ListHelper;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.OnClickGesture;
@@ -178,10 +180,6 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         createDocumentLauncher = registerForActivityResult(
                 new ActivityResultContracts.CreateDocument("application/json"),
                 this::exportPlaylistToUri);
-    }
-
-    private static String sanitizeFileName(final String fileName) {
-        return fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
     }
 
     private void exportPlaylistToUri(final android.net.Uri uri) {
@@ -487,7 +485,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         } else if (item.getItemId() == R.id.menu_item_sort_playlist) {
             openSortDialog();
         } else if (item.getItemId() == R.id.menu_item_export_playlist_json) {
-            createDocumentLauncher.launch(sanitizeFileName(name) + ".json");
+            createDocumentLauncher.launch(FilenameUtils.sanitizeFilename(name) + ".json");
         } else if (item.getItemId() == R.id.menu_item_split_playlist) {
             showSplitPlaylistDialog();
         } else {
@@ -652,13 +650,9 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             }
         }
 
-        int next = 0;
-        for (int i = 0; i < allItems.size() && next < visible.size(); i++) {
-            final PlaylistStreamEntry entry = allItems.get(i);
-            if (currentTab == TAB_ALL || isWatched(entry) == (currentTab == TAB_WATCHED)) {
-                allItems.set(i, visible.get(next++));
-            }
-        }
+        ListHelper.reorderSubset(allItems, visible,
+                entry -> currentTab == TAB_ALL
+                        || isWatched(entry) == (currentTab == TAB_WATCHED));
     }
 
     ///////////////////////////////////////////////////////////////////////////
