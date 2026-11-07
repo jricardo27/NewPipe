@@ -16,6 +16,7 @@ import android.os.Parcelable;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -56,6 +57,7 @@ import org.schabi.newpipe.fragments.list.playlist.PlaylistControlViewHolder;
 import org.schabi.newpipe.info_list.dialog.InfoItemDialog;
 import org.schabi.newpipe.info_list.dialog.StreamDialogDefaultEntry;
 import org.schabi.newpipe.local.BaseLocalListFragment;
+import org.schabi.newpipe.local.history.HistoryRecordManager;
 import org.schabi.newpipe.player.playqueue.PlayQueue;
 import org.schabi.newpipe.player.playqueue.PlayQueueItem;
 import org.schabi.newpipe.player.playqueue.SinglePlayQueue;
@@ -88,6 +90,7 @@ import java.util.function.Supplier;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.Disposable;
 
@@ -196,7 +199,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                         }
                         PlaylistImportExportJsonHelper.PlaylistWithStreams playlist = new PlaylistImportExportJsonHelper.PlaylistWithStreams(
                                 name, exportEntries);
-                        PlaylistImportExportJsonHelper.writeTo(Collections.singletonList(playlist), os, null);
+                        PlaylistImportExportJsonHelper.writeTo(Collections.singletonList(playlist), os);
                         Toast.makeText(context, R.string.export_complete_toast, Toast.LENGTH_SHORT).show();
                     } catch (Exception e) {
                         showUiErrorSnackbar(this, "Exporting playlist", e);

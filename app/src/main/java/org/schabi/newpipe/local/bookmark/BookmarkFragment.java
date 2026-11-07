@@ -133,7 +133,7 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
                             if (os == null) {
                                 throw new java.io.IOException("Could not open output stream");
                             }
-                            PlaylistImportExportJsonHelper.writeTo(playlists, os, null);
+                            PlaylistImportExportJsonHelper.writeTo(playlists, os);
                             Toast.makeText(activity, R.string.export_complete_toast, Toast.LENGTH_SHORT).show();
                         } catch (Exception e) {
                             org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(this, "Exporting playlists", e);
@@ -151,7 +151,7 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
         try {
             java.io.InputStream is = activity.getContentResolver().openInputStream(uri);
             List<PlaylistImportExportJsonHelper.PlaylistWithStreams> playlists = PlaylistImportExportJsonHelper
-                    .readFrom(is, null);
+                    .readFrom(is);
 
             if (playlists == null || playlists.isEmpty()) {
                 Toast.makeText(activity, "No playlists found in file", Toast.LENGTH_SHORT).show();

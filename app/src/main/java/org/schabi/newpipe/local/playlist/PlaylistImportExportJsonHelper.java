@@ -1,7 +1,5 @@
 package org.schabi.newpipe.local.playlist;
 
-import androidx.annotation.Nullable;
-
 import com.grack.nanojson.JsonAppendableWriter;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
@@ -11,7 +9,6 @@ import com.grack.nanojson.JsonWriter;
 import org.schabi.newpipe.BuildConfig;
 import org.schabi.newpipe.database.stream.model.StreamEntity;
 import org.schabi.newpipe.extractor.stream.StreamType;
-import org.schabi.newpipe.local.subscription.services.ImportExportEventListener;
 
 import java.time.OffsetDateTime;
 import java.io.InputStream;
@@ -65,8 +62,7 @@ public final class PlaylistImportExportJsonHelper {
         }
     }
 
-    public static List<PlaylistWithStreams> readFrom(
-            final InputStream in, @Nullable final ImportExportEventListener eventListener)
+    public static List<PlaylistWithStreams> readFrom(final InputStream in)
             throws Exception {
         if (in == null) {
             throw new IllegalArgumentException("input is null");
@@ -81,10 +77,6 @@ public final class PlaylistImportExportJsonHelper {
         }
 
         final JsonArray playlistsArray = parentObject.getArray(JSON_PLAYLISTS_ARRAY_KEY);
-
-        if (eventListener != null) {
-            eventListener.onSizeReceived(playlistsArray.size());
-        }
 
         for (final Object o : playlistsArray) {
             if (o instanceof JsonObject) {
@@ -129,9 +121,6 @@ public final class PlaylistImportExportJsonHelper {
 
                 if (name != null && !name.isEmpty()) {
                     playlists.add(new PlaylistWithStreams(name, streams));
-                    if (eventListener != null) {
-                        eventListener.onItemCompleted(name);
-                    }
                 }
             }
         }
@@ -139,19 +128,14 @@ public final class PlaylistImportExportJsonHelper {
         return playlists;
     }
 
-    public static void writeTo(final List<PlaylistWithStreams> playlists, final OutputStream out,
-            @Nullable final ImportExportEventListener eventListener) {
+    public static void writeTo(final List<PlaylistWithStreams> playlists, final OutputStream out) {
         final JsonAppendableWriter writer = JsonWriter.on(out);
-        writeTo(playlists, writer, eventListener);
+        writeTo(playlists, writer);
         writer.done();
     }
 
     public static void writeTo(final List<PlaylistWithStreams> playlists,
-            final JsonAppendableWriter writer,
-            @Nullable final ImportExportEventListener eventListener) {
-        if (eventListener != null) {
-            eventListener.onSizeReceived(playlists.size());
-        }
+            final JsonAppendableWriter writer) {
 
         writer.object();
 
@@ -191,10 +175,6 @@ public final class PlaylistImportExportJsonHelper {
             }
             writer.end();
             writer.end();
-
-            if (eventListener != null) {
-                eventListener.onItemCompleted(playlist.name);
-            }
         }
         writer.end();
 
