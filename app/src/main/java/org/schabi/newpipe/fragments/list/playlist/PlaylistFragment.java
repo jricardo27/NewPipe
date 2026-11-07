@@ -60,7 +60,9 @@ import org.schabi.newpipe.database.stream.model.StreamStateEntity;
 import com.google.android.material.tabs.TabLayout;
 import org.schabi.newpipe.local.history.HistoryRecordManager;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -95,7 +97,8 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
 
     private long streamCount;
     private long playlistOverallDurationSeconds;
-    private boolean isDurationComplete = false;
+    @State
+    protected boolean isDurationComplete = false;
     private static final int TAB_ALL = 0;
     private static final int TAB_UNWATCHED = 1;
     private static final int TAB_WATCHED = 2;
@@ -104,7 +107,9 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
     protected int currentTab = TAB_ALL;
 
     private List<StreamInfoItem> allItems = new ArrayList<>();
-    private List<StreamStateEntity> streamStates = new ArrayList<>();
+    private final List<StreamStateEntity> streamStates = new ArrayList<>();
+    private int requestedStates = 0;
+    private int statesLoadGeneration = 0;
 
     public static PlaylistFragment getInstance(final int serviceId, final String url,
             final String name) {
@@ -347,6 +352,9 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
         super.handleResult(result);
 
         this.allItems.clear();
+        this.streamStates.clear();
+        this.requestedStates = 0;
+        this.statesLoadGeneration++;
         if (restoredItems.stream().anyMatch(item -> item instanceof StreamInfoItem)) {
             for (final InfoItem item : restoredItems) {
                 if (item instanceof StreamInfoItem) {
@@ -439,28 +447,58 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
     }
 
     private void loadStatesAndFilter() {
+        if (allItems == null) {
+            return;
+        }
+        if (requestedStates >= allItems.size()) {
+            updateTabTitles();
+            filterItems();
+            if (isLoading != null) {
+                isLoading.set(false);
+            }
+            hideLoading();
+            return;
+        }
+        final int generation = statesLoadGeneration;
+        final List<StreamInfoItem> pending =
+                allItems.subList(requestedStates, allItems.size());
+        requestedStates = allItems.size();
         final var database = NewPipeDatabase.getInstance(requireContext());
         disposables.add(io.reactivex.rxjava3.core.Single.fromCallable(() -> {
-            final List<StreamStateEntity> states = new ArrayList<>(allItems.size());
-            for (StreamInfoItem item : allItems) {
-                final List<org.schabi.newpipe.database.stream.model.StreamEntity> streamEntities = database.streamDAO()
-                        .getStream(item.getServiceId(), item.getUrl())
-                        .blockingFirst();
-                if (!streamEntities.isEmpty()) {
-                    final long streamId = streamEntities.get(0).getUid();
-                    final List<StreamStateEntity> stateList = database.streamStateDAO().getState(streamId)
-                            .blockingFirst();
-                    states.add(stateList.isEmpty() ? null : stateList.get(0));
-                } else {
-                    states.add(null);
+            final Map<Integer, List<String>> urlsByService = new HashMap<>();
+            for (final StreamInfoItem item : pending) {
+                urlsByService.computeIfAbsent(item.getServiceId(), k -> new ArrayList<>())
+                        .add(item.getUrl());
+            }
+            final Map<String, Long> uidByUrl = new HashMap<>();
+            for (final var entry : urlsByService.entrySet()) {
+                final List<String> urls = entry.getValue();
+                for (int i = 0; i < urls.size(); i += 900) {
+                    for (final StreamEntity entity : database.streamDAO()
+                            .getStreamsByServiceAndUrls(entry.getKey(),
+                                    urls.subList(i, Math.min(i + 900, urls.size())))) {
+                        uidByUrl.put(entry.getKey() + "|" + entity.getUrl(), entity.getUid());
+                    }
                 }
+            }
+            final Map<Long, StreamStateEntity> statesByUid = new HashMap<>();
+            for (final StreamStateEntity state : database.streamStateDAO()
+                    .getStatesChunked(new ArrayList<>(uidByUrl.values()))) {
+                statesByUid.put(state.getStreamUid(), state);
+            }
+            final List<StreamStateEntity> states = new ArrayList<>(pending.size());
+            for (final StreamInfoItem item : pending) {
+                final Long uid = uidByUrl.get(item.getServiceId() + "|" + item.getUrl());
+                states.add(uid == null ? null : statesByUid.get(uid));
             }
             return states;
         })
                 .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(states -> {
-                    this.streamStates = states;
+                    if (generation == statesLoadGeneration) {
+                        streamStates.addAll(states);
+                    }
                     updateTabTitles();
                     filterItems();
                     if (isLoading != null) {
@@ -468,6 +506,9 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
                     }
                     hideLoading();
                 }, throwable -> {
+                    if (generation == statesLoadGeneration) {
+                        requestedStates = streamStates.size();
+                    }
                     filterItems();
                     hideLoading();
                 }));

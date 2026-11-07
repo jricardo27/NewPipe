@@ -624,7 +624,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             return;
         }
 
-        final List<PlaylistStreamEntry> filtered = new ArrayList<>();
+        final List<LocalItem> filtered = new ArrayList<>();
         for (final PlaylistStreamEntry entry : allItems) {
             if (currentTab == TAB_ALL || isWatched(entry) == (currentTab == TAB_WATCHED)) {
                 filtered.add(entry);
@@ -633,7 +633,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
         itemListAdapter.clearStreamItemList();
         itemListAdapter.addItems(filtered);
-        setStreamCountAndOverallDuration(new ArrayList<>(filtered));
+        setStreamCountAndOverallDuration(filtered);
 
         if (filtered.isEmpty()) {
             if (!allItems.isEmpty()) {
@@ -1028,7 +1028,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         this.name = !TextUtils.isEmpty(title) ? title : "";
     }
 
-    private void setStreamCountAndOverallDuration(final ArrayList<LocalItem> itemsList) {
+    private void setStreamCountAndOverallDuration(final List<LocalItem> itemsList) {
         if (activity != null && headerBinding != null) {
             final long streamCount = itemsList.size();
             final long playlistOverallDurationSeconds = itemsList.stream()

@@ -777,6 +777,9 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
+                    if (!isAdded()) {
+                        return;
+                    }
                     for (InfoItem item : result.getItems()) {
                         if (item instanceof StreamInfoItem) {
                             allItems.add(new StreamEntity((StreamInfoItem) item));
@@ -788,19 +791,19 @@ public class ChannelFragment extends BaseStateFragment<ChannelInfo>
                         fetchNextPage(result.getNextPage(), handler, allItems, dialog);
                     } else {
                         dialog.dismiss();
-                        PlaylistAppendDialog.newInstance(allItems).show(getChildFragmentManager(), TAG);
+                        PlaylistAppendDialog.newInstance(allItems)
+                                .show(getChildFragmentManager(), TAG);
                     }
                 }, error -> {
+                    if (!isAdded()) {
+                        return;
+                    }
                     dialog.dismiss();
                     ErrorUtil.showUiErrorSnackbar(this, "Fetching more items", error);
                 });
-        // Add to disposables if we want global cancel, but dialog cancel handles the
-        // chain root?
-        // No, fetchNextPage starts a new disposable. We should ideally track it.
-        // However, standard simplified implementation for this feature often relies on
-        // "fire and forget" if user doesn't cancel.
-        // But if dialog is cancelled, the CURRENT request should stop.
-        // The previous disposable is done. We can update the CancelListener.
+        disposables.add(d);
+        // The previous disposable completed; keep the cancel listener pointed at the
+        // in-flight request.
         dialog.setOnCancelListener(di -> d.dispose());
     }
 
