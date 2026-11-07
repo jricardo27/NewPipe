@@ -155,26 +155,10 @@ class LocalPlaylistManager(private val database: AppDatabase) {
                         }
                         .associateBy { it.serviceId to it.url }
                     val streamEntities = streams.map { entry ->
-                        val existing = existingByKey[
+                        // Streams already stored locally keep their fresher metadata
+                        existingByKey[
                             entry.streamEntity.serviceId to entry.streamEntity.url
-                        ]
-                        if (existing == null) {
-                            entry.streamEntity
-                        } else {
-                            entry.streamEntity.copy(
-                                viewCount = entry.streamEntity.viewCount ?: existing.viewCount,
-                                uploaderUrl = entry.streamEntity.uploaderUrl
-                                    ?: existing.uploaderUrl,
-                                thumbnailUrl = entry.streamEntity.thumbnailUrl
-                                    ?: existing.thumbnailUrl,
-                                textualUploadDate = entry.streamEntity.textualUploadDate
-                                    ?: existing.textualUploadDate,
-                                uploadDate = entry.streamEntity.uploadDate ?: existing.uploadDate,
-                                isUploadDateApproximation = entry.streamEntity
-                                    .isUploadDateApproximation
-                                    ?: existing.isUploadDateApproximation
-                            )
-                        }
+                        ] ?: entry.streamEntity
                     }
                     val streamIds = streamTable.upsertAll(streamEntities)
 

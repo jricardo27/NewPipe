@@ -460,8 +460,9 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
             return;
         }
         final int generation = statesLoadGeneration;
+        final int startIndex = requestedStates;
         final List<StreamInfoItem> pending =
-                allItems.subList(requestedStates, allItems.size());
+                new ArrayList<>(allItems.subList(startIndex, allItems.size()));
         requestedStates = allItems.size();
         final var database = NewPipeDatabase.getInstance(requireContext());
         disposables.add(io.reactivex.rxjava3.core.Single.fromCallable(() -> {
@@ -497,7 +498,7 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(states -> {
                     if (generation == statesLoadGeneration) {
-                        streamStates.addAll(states);
+                        applyStates(startIndex, states);
                     }
                     updateTabTitles();
                     filterItems();
@@ -507,11 +508,24 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
                     hideLoading();
                 }, throwable -> {
                     if (generation == statesLoadGeneration) {
-                        requestedStates = streamStates.size();
+                        requestedStates = Math.min(requestedStates, startIndex);
                     }
                     filterItems();
                     hideLoading();
                 }));
+    }
+
+    private void applyStates(final int startIndex, final List<StreamStateEntity> states) {
+        while (streamStates.size() < startIndex) {
+            streamStates.add(null);
+        }
+        for (int i = 0; i < states.size(); i++) {
+            if (startIndex + i < streamStates.size()) {
+                streamStates.set(startIndex + i, states.get(i));
+            } else {
+                streamStates.add(states.get(i));
+            }
+        }
     }
 
     private void updateTabTitles() {
