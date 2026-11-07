@@ -173,11 +173,33 @@ class ErrorInfo private constructor(
 
         fun throwableListToStringList(throwableList: List<Throwable>) = throwableList.map { it.stackTraceToString() }.toTypedArray()
 
+        private const val MAX_CAUSE_DEPTH = 8
+
+        /**
+         * Finds the most specific [ExtractionException] nested in the cause chain of
+         * [throwable], e.g. a [org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException]
+         * wrapped by a player/media source error. Used to surface the real reason
+         * (e.g. "age restricted") instead of a generic player error.
+         */
+        private fun findNestedExtractionException(throwable: Throwable): ExtractionException? {
+            return generateSequence(throwable) { it.cause }
+                .drop(1) // skip the throwable itself to avoid infinite recursion
+                .take(MAX_CAUSE_DEPTH)
+                .firstOrNull { it is ExtractionException } as? ExtractionException
+        }
+
         fun getMessage(
             throwable: Throwable?,
             action: UserAction?,
             serviceId: Int?
         ): ErrorMessage {
+            // a nested extraction error is more specific than a generic player/network error
+            if (throwable != null && throwable !is ExtractionException) {
+                findNestedExtractionException(throwable)?.let {
+                    return getMessage(it, action, serviceId)
+                }
+            }
+
             return when {
                 // player exceptions
                 // some may be IOException, so do these checks before isNetworkRelated!
@@ -197,7 +219,7 @@ class ErrorInfo private constructor(
                         }
 
                         cause is Loader.UnexpectedLoaderException && cause.cause is ExtractionException ->
-                            getMessage(throwable, action, serviceId)
+                            getMessage(cause.cause, action, serviceId)
 
                         throwable.type == ExoPlaybackException.TYPE_SOURCE ->
                             ErrorMessage(R.string.player_stream_failure)
@@ -319,8 +341,10 @@ class ErrorInfo private constructor(
                 // return true, but not all `IOException`s are network related
                 is UnknownHostException -> false
 
-                // by default, this is an unexpected exception, which the user could report
-                else -> true
+                // by default, this is an unexpected exception, which the user could report,
+                // unless it wraps a known non-reportable cause (e.g. a media source error
+                // carrying an age restriction error)
+                else -> throwable?.let(::findNestedExtractionException)?.let(::isReportable) ?: true
             }
         }
 
@@ -333,8 +357,9 @@ class ErrorInfo private constructor(
                 is ContentNotSupportedException -> false
 
                 // by default (including if throwable is null), enable retrying (though the retry
-                // button will be shown only if a way to perform the retry is implemented)
-                else -> true
+                // button will be shown only if a way to perform the retry is implemented),
+                // unless it wraps a known non-retryable cause
+                else -> throwable?.let(::findNestedExtractionException)?.let(::isRetryable) ?: true
             }
         }
 

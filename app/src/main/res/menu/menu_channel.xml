@@ -18,6 +18,11 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/menu_item_enqueue_all"
+        android:title="@string/enqueue_all"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menu_item_notify"
         android:checkable="true"
         android:orderInCategory="1"

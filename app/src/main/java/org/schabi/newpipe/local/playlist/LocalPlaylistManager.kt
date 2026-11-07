@@ -10,6 +10,8 @@ import androidx.room3.withWriteTransaction
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Flowable
 import io.reactivex.rxjava3.core.Maybe
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -21,12 +23,14 @@ import org.schabi.newpipe.database.playlist.PlaylistStreamEntry
 import org.schabi.newpipe.database.playlist.model.PlaylistEntity
 import org.schabi.newpipe.database.playlist.model.PlaylistStreamEntity
 import org.schabi.newpipe.database.stream.model.StreamEntity
+import org.schabi.newpipe.database.stream.model.StreamStateEntity
 
 class LocalPlaylistManager(private val database: AppDatabase) {
 
     private val streamTable = database.streamDAO()
     private val playlistTable = database.playlistDAO()
     private val playlistStreamTable = database.playlistStreamDAO()
+    private val streamStateTable = database.streamStateDAO()
 
     fun createPlaylist(name: String, streams: List<StreamEntity>): Maybe<List<Long>> {
         // Disallow creation of empty playlists
@@ -118,6 +122,90 @@ class LocalPlaylistManager(private val database: AppDatabase) {
 
     fun getPlaylistStreams(playlistId: Long): Flowable<MutableList<PlaylistStreamEntry>> {
         return playlistStreamTable.getOrderedStreamsOf(playlistId).subscribeOn(Schedulers.io())
+    }
+
+    fun createPlaylistWithStates(
+        name: String,
+        streams: List<PlaylistImportExportJsonHelper.StreamExportEntry>
+    ): Maybe<List<Long>> {
+        return rxMaybe(Dispatchers.IO) {
+            database.withWriteTransaction {
+                if (streams.isEmpty()) {
+                    // Keep empty playlists on import instead of dropping them
+                    listOf(
+                        playlistTable.insert(
+                            PlaylistEntity(
+                                name = name,
+                                isThumbnailPermanent = false,
+                                thumbnailStreamId = PlaylistEntity.DEFAULT_THUMBNAIL_ID,
+                                displayIndex = -1
+                            )
+                        )
+                    )
+                } else {
+                    // Fields an export may not carry keep their stored values
+                    val existingByKey = streams
+                        .groupBy { it.streamEntity.serviceId }
+                        .flatMap { (serviceId, group) ->
+                            group.map { it.streamEntity.url }
+                                .chunked(900)
+                                .flatMap { urls ->
+                                    streamTable.getStreamsByServiceAndUrls(serviceId, urls)
+                                }
+                        }
+                        .associateBy { it.serviceId to it.url }
+                    val streamEntities = streams.map { entry ->
+                        // Streams already stored locally keep their fresher metadata
+                        existingByKey[
+                            entry.streamEntity.serviceId to entry.streamEntity.url
+                        ] ?: entry.streamEntity
+                    }
+                    val streamIds = streamTable.upsertAll(streamEntities)
+
+                    // Never overwrite progress already recorded on this device
+                    val existingStateIds = streamStateTable.getStatesChunked(streamIds)
+                        .map { it.streamUid }
+                        .toSet()
+                    val states = streamIds.mapIndexedNotNull { index, streamId ->
+                        streams[index].progressMillis
+                            .takeIf { it > 0 && streamId !in existingStateIds }
+                            ?.let { StreamStateEntity(streamId, it) }
+                    }
+                    if (states.isNotEmpty()) {
+                        streamStateTable.upsertAll(states)
+                    }
+
+                    val newPlaylist = PlaylistEntity(
+                        name = name,
+                        isThumbnailPermanent = false,
+                        thumbnailStreamId = streamIds[0],
+                        displayIndex = -1
+                    )
+                    insertJoinEntities(playlistTable.insert(newPlaylist), streamIds, 0)
+                }
+            }
+        }
+    }
+
+    fun getAllPlaylistsWithStreams(): Single<List<PlaylistImportExportJsonHelper.PlaylistWithStreams>> {
+        return getPlaylists().firstOrError()
+            .flatMapObservable { Observable.fromIterable(it) }
+            .flatMapSingle { playlist ->
+                getPlaylistStreams(playlist.uid).firstOrError()
+                    .map { entries ->
+                        PlaylistImportExportJsonHelper.PlaylistWithStreams(
+                            playlist.orderingName,
+                            entries.map { entry ->
+                                PlaylistImportExportJsonHelper.StreamExportEntry(
+                                    entry.streamEntity,
+                                    entry.progressMillis
+                                )
+                            }
+                        )
+                    }
+            }
+            .toList()
+            .map { it.toList() }
     }
 
     fun renamePlaylist(playlistId: Long, name: String): Maybe<Int> {

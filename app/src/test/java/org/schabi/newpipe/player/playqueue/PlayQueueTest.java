@@ -199,4 +199,33 @@ public class PlayQueueTest {
             assertFalse(queue1.equalStreams(queue2));
         }
     }
+
+    public static class ErrorTests {
+        private PlayQueue queue;
+
+        @Before
+        public void setup() {
+            final List<PlayQueueItem> streams = new ArrayList<>(5);
+            for (int i = 0; i < 5; ++i) {
+                streams.add(makeItemWithUrl("URL_" + i));
+            }
+            queue = makePlayQueue(0, streams);
+        }
+
+        @Test
+        public void errorAdvancesIndexAndKeepsItems() {
+            queue.error();
+            assertEquals(1, queue.getIndex());
+            assertEquals(5, queue.size());
+        }
+
+        @Test
+        public void errorOnLastItemMovesIndexPastEnd() {
+            queue.setIndex(4);
+            queue.error();
+            assertEquals(5, queue.getIndex());
+            // the failed item is not removed from the queue
+            assertEquals(5, queue.size());
+        }
+    }
 }

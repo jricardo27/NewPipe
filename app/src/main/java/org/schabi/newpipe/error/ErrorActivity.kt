@@ -16,6 +16,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.IntentCompat
 import androidx.core.net.toUri
+import androidx.core.view.isVisible
 import com.grack.nanojson.JsonWriter
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -97,6 +98,13 @@ class ErrorActivity : AppCompatActivity() {
 
         binding.errorReportGitHubButton.setOnClickListener { _ ->
             openPrivacyPolicyDialog(this, "GITHUB")
+        }
+
+        errorInfo.openInBrowserUrl?.let { url ->
+            binding.errorOpenInBrowserButton.isVisible = true
+            binding.errorOpenInBrowserButton.setOnClickListener {
+                ShareUtils.openUrlInBrowser(this, url)
+            }
         }
 
         // normal bugreport

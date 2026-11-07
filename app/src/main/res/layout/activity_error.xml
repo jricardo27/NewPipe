@@ -141,6 +141,13 @@
                 android:layout_height="wrap_content"
                 android:text="@string/error_report_open_issue_button_text" />
 
+            <Button
+                android:id="@+id/errorOpenInBrowserButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:text="@string/open_in_browser" />
+
         </LinearLayout>
     </ScrollView>
 

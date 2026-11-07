@@ -83,6 +83,7 @@ import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.video.VideoSize;
 
 import org.schabi.newpipe.MainActivity;
+import android.widget.Toast;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.databinding.PlayerBinding;
 import org.schabi.newpipe.error.ErrorInfo;
@@ -1576,20 +1577,35 @@ public final class Player implements PlaybackListener, Listener {
                 // Source errors, signal on playQueue and move on:
                 if (!exoPlayerIsNull() && playQueue != null) {
                     playQueue.error();
+                    isCatchableException = true;
+                    toastSkippedError(error);
                 }
                 break;
             case ERROR_CODE_TIMEOUT:
             case ERROR_CODE_IO_UNSPECIFIED:
+            case ERROR_CODE_UNSPECIFIED:
+                if (!exoPlayerIsNull() && playQueue != null && playQueue.size() > 1) {
+                    playQueue.error();
+                    isCatchableException = true;
+                    toastSkippedError(error);
+                    break;
+                }
+                // fallthrough
             case ERROR_CODE_IO_NETWORK_CONNECTION_FAILED:
             case ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT:
-            case ERROR_CODE_UNSPECIFIED:
                 // Reload playback on unexpected errors:
                 setRecovery();
                 reloadPlayQueueManager();
                 break;
             default:
                 // API, remote and renderer errors belong here:
-                onPlaybackShutdown();
+                if (!exoPlayerIsNull() && playQueue != null && playQueue.size() > 1) {
+                    playQueue.error();
+                    isCatchableException = true;
+                    toastSkippedError(error);
+                } else {
+                    onPlaybackShutdown();
+                }
                 break;
         }
 
@@ -1600,6 +1616,22 @@ public final class Player implements PlaybackListener, Listener {
         if (fragmentListener != null) {
             fragmentListener.onPlayerError(error, isCatchableException);
         }
+    }
+
+    /**
+     * Informs the user why the failed queue item was skipped with a toast containing the
+     * specific reason (e.g. "age restricted"), instead of letting the video silently
+     * disappear from the queue.
+     */
+    private void toastSkippedError(@NonNull final PlaybackException error) {
+        final Integer serviceId = Optional.ofNullable(currentMetadata)
+                .map(MediaItemTag::getServiceId)
+                .orElse(null);
+        final CharSequence message = new ErrorInfo(error, UserAction.PLAY_STREAM,
+                "", serviceId, null).getMessage(context);
+        Toast.makeText(context,
+                context.getString(R.string.player_error_item_skipped, message),
+                Toast.LENGTH_LONG).show();
     }
 
     private void createErrorNotification(@NonNull final PlaybackException error) {
@@ -1711,6 +1743,10 @@ public final class Player implements PlaybackListener, Listener {
                 playQueue.unsetRecovery(playQueueIndex);
             } else {
                 simpleExoPlayer.seekToDefaultPosition(playQueueIndex);
+            }
+
+            if (simpleExoPlayer.getPlaybackState() == com.google.android.exoplayer2.Player.STATE_IDLE) {
+                simpleExoPlayer.prepare();
             }
         }
     }

@@ -13,4 +13,5 @@ interface PlaylistLocalItem : LocalItem {
     val displayIndex: Long?
     val uid: Long
     val thumbnailUrl: String?
+    var unwatchedCount: Long?
 }

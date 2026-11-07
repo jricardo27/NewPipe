@@ -19,6 +19,40 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 public class ListHelperTest {
+
+    // ///////////////////////////////////////////////////////////////////////////////////////////////
+    // reorderSubset
+    // ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    @Test
+    public void reorderSubsetKeepsHiddenElementsInPlace() {
+        final List<Integer> all = new ArrayList<>(List.of(1, 90, 2, 80, 3));
+        // only elements < 9 are "visible", reordered as 3, 1, 2
+        ListHelper.reorderSubset(all, List.of(3, 1, 2), x -> x < 9);
+        assertEquals(List.of(3, 90, 1, 80, 2), all);
+    }
+
+    @Test
+    public void reorderSubsetWithAllMembersVisible() {
+        final List<Integer> all = new ArrayList<>(List.of(1, 2, 3));
+        ListHelper.reorderSubset(all, List.of(3, 1, 2), x -> true);
+        assertEquals(List.of(3, 1, 2), all);
+    }
+
+    @Test
+    public void reorderSubsetWithEmptyView() {
+        final List<Integer> all = new ArrayList<>(List.of(1, 2, 3));
+        ListHelper.reorderSubset(all, List.of(), x -> true);
+        assertEquals(List.of(1, 2, 3), all);
+    }
+
+    @Test
+    public void reorderSubsetWithNoMembers() {
+        final List<Integer> all = new ArrayList<>(List.of(5, 6, 7));
+        ListHelper.reorderSubset(all, List.of(1, 2), x -> x < 4);
+        assertEquals(List.of(5, 6, 7), all);
+    }
+
     private static final String BEST_RESOLUTION_KEY = "best_resolution";
     private static final List<AudioStream> AUDIO_STREAMS_TEST_LIST = List.of(
             generateAudioStream("m4a-128-1", MediaFormat.M4A, 128),

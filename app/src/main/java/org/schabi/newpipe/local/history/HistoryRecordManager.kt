@@ -253,19 +253,18 @@ class HistoryRecordManager(context: Context) {
 
     fun loadLocalStreamStateBatch(items: List<LocalItem>): Single<List<StreamStateEntity?>> {
         return Single.fromCallable {
-            items.map { item ->
-                val streamId = when (item) {
-                    is StreamStatisticsEntry -> item.streamId
-                    is PlaylistStreamEntity -> item.streamUid
-                    is PlaylistStreamEntry -> item.streamId
-                    else -> return@map null
-                }
-
-                streamStateTable.getState(streamId)
-                    .blockingFirst()
-                    .firstOrNull()
-            }
+            val statesByStreamId = streamStateTable
+                .getStatesChunked(items.mapNotNull { streamIdOf(it) })
+                .associateBy { it.streamUid }
+            items.map { item -> streamIdOf(item)?.let { statesByStreamId[it] } }
         }.subscribeOn(Schedulers.io())
+    }
+
+    private fun streamIdOf(item: LocalItem): Long? = when (item) {
+        is StreamStatisticsEntry -> item.streamId
+        is PlaylistStreamEntity -> item.streamUid
+        is PlaylistStreamEntry -> item.streamId
+        else -> null
     }
 
     fun saveStreamState(info: StreamInfo, progressMillis: Long): Completable {

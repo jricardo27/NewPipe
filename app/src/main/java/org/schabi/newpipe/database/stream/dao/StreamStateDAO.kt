@@ -34,6 +34,11 @@ interface StreamStateDAO : BasicDAO<StreamStateEntity> {
     @Query("SELECT * FROM " + StreamStateEntity.STREAM_STATE_TABLE + " WHERE " + StreamStateEntity.JOIN_STREAM_ID + " = :streamId")
     fun getState(streamId: Long): Flowable<MutableList<StreamStateEntity>>
 
+    @Query("SELECT * FROM " + StreamStateEntity.STREAM_STATE_TABLE + " WHERE " + StreamStateEntity.JOIN_STREAM_ID + " IN (:streamIds)")
+    fun getStates(streamIds: List<Long>): List<StreamStateEntity>
+
+    fun getStatesChunked(streamIds: List<Long>): List<StreamStateEntity> = streamIds.chunked(900).flatMap { getStates(it) }
+
     @Query("DELETE FROM " + StreamStateEntity.STREAM_STATE_TABLE + " WHERE " + StreamStateEntity.JOIN_STREAM_ID + " = :streamId")
     fun deleteState(streamId: Long): Int
 
@@ -44,5 +49,14 @@ interface StreamStateDAO : BasicDAO<StreamStateEntity> {
     fun upsert(stream: StreamStateEntity): Long {
         silentInsertInternal(stream)
         return update(stream).toLong()
+    }
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun silentInsertAllInternal(streamStates: List<StreamStateEntity>)
+
+    @Transaction
+    fun upsertAll(streamStates: List<StreamStateEntity>) {
+        silentInsertAllInternal(streamStates)
+        update(streamStates)
     }
 }

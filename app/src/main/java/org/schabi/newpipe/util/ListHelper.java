@@ -735,6 +735,31 @@ public final class ListHelper {
     }
 
     /**
+     * Reorders the elements of {@code all} that satisfy {@code belongsToView} so that
+     * they appear in the same relative order as {@code visibleOrder}, while elements
+     * not matching the predicate keep their positions.
+     *
+     * <p>Used to apply a reorder performed on a filtered view (e.g. a playlist tab)
+     * back to the complete list, without losing or moving hidden elements.</p>
+     *
+     * @param all          the complete list, modified in place
+     * @param visibleOrder the desired order of the currently visible elements
+     * @param belongsToView predicate identifying which elements are part of the view
+     * @param <T>          element type
+     */
+    public static <T> void reorderSubset(@NonNull final List<T> all,
+                                         @NonNull final List<T> visibleOrder,
+                                         @NonNull final Predicate<T> belongsToView) {
+        int next = 0;
+        for (int i = 0; i < all.size() && next < visibleOrder.size(); i++) {
+            if (belongsToView.test(all.get(i))) {
+                all.set(i, visibleOrder.get(next));
+                next++;
+            }
+        }
+    }
+
+    /**
      * Get a {@link Comparator} to compare {@link AudioStream}s by their format and bitrate.
      *
      * <p>The preferred stream will be ordered last.</p>

@@ -103,22 +103,27 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
     // fullscreen player
     private ItemTouchHelper itemTouchHelper;
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Constructor, setup, destroy
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Constructor, setup, destroy
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Constructor, setup, destroy
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Constructor, setup, destroy
 
     public MainPlayerUi(@NonNull final Player player,
-                        @NonNull final PlayerBinding playerBinding) {
+            @NonNull final PlayerBinding playerBinding) {
         super(player, playerBinding);
     }
 
     /**
-     * Open fullscreen on tablets where the option to have the main player start automatically in
-     * fullscreen mode is on. Rotating the device to landscape is already done in {@link
-     * VideoDetailFragment#openVideoPlayer(boolean)} when the thumbnail is clicked, and that's
-     * enough for phones, but not for tablets since the mini player can be also shown in landscape.
+     * Open fullscreen on tablets where the option to have the main player start
+     * automatically in
+     * fullscreen mode is on. Rotating the device to landscape is already done in
+     * {@link
+     * VideoDetailFragment#openVideoPlayer(boolean)} when the thumbnail is clicked,
+     * and that's
+     * enough for phones, but not for tablets since the mini player can be also
+     * shown in landscape.
      */
     private void directlyOpenFullscreenIfNeeded() {
         if (PlayerHelper.isStartMainPlayerFullscreenEnabled(player.getService())
@@ -140,7 +145,8 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         // Android TV: without it focus will frame the whole player
         binding.playPauseButton.requestFocus();
 
-        // Note: This is for automatically playing (when "Resume playback" is off), see #6179
+        // Note: This is for automatically playing (when "Resume playback" is off), see
+        // #6179
         if (player.getPlayWhenReady()) {
             player.play();
         } else {
@@ -158,7 +164,8 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         super.initListeners();
 
         binding.screenRotationButton.setOnClickListener(makeOnClickListener(() -> {
-            // Only if it's not a vertical video or vertical video but in landscape with locked
+            // Only if it's not a vertical video or vertical video but in landscape with
+            // locked
             // orientation a screen orientation can be changed automatically
             if (!isVerticalVideo || (isLandscape() && globalScreenOrientationLocked(context))) {
                 player.getFragmentListener()
@@ -170,10 +177,9 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         binding.queueButton.setOnClickListener(v -> onQueueClicked());
         binding.segmentsButton.setOnClickListener(v -> onSegmentsClicked());
 
-        binding.addToPlaylistButton.setOnClickListener(v ->
-                getParentActivity().map(FragmentActivity::getSupportFragmentManager)
-                        .ifPresent(fragmentManager ->
-                                PlaylistDialog.showForPlayQueue(player, fragmentManager)));
+        binding.addToPlaylistButton
+                .setOnClickListener(v -> getParentActivity().map(FragmentActivity::getSupportFragmentManager)
+                        .ifPresent(fragmentManager -> PlaylistDialog.showForPlayQueue(player, fragmentManager)));
 
         settingsContentObserver = new ContentObserver(new Handler(Looper.getMainLooper())) {
             @Override
@@ -328,23 +334,24 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
                 resources.getDimensionPixelSize(R.dimen.player_main_buttons_min_width),
                 resources.getDimensionPixelSize(R.dimen.player_main_top_padding),
                 resources.getDimensionPixelSize(R.dimen.player_main_controls_padding),
-                resources.getDimensionPixelSize(R.dimen.player_main_buttons_padding)
-        );
+                resources.getDimensionPixelSize(R.dimen.player_main_buttons_padding));
     }
-    //endregion
+    // endregion
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Broadcast receiver
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Broadcast receiver
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Broadcast receiver
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Broadcast receiver
 
     @Override
     public void onBroadcastReceived(final Intent intent) {
         super.onBroadcastReceived(intent);
         if (Intent.ACTION_CONFIGURATION_CHANGED.equals(intent.getAction())) {
             // Close it because when changing orientation from portrait
-            // (in fullscreen mode) the size of queue layout can be larger than the screen size
+            // (in fullscreen mode) the size of queue layout can be larger than the screen
+            // size
             closeItemsList();
         } else if (ACTION_PLAY_PAUSE.equals(intent.getAction())) {
             // Ensure that we have audio-only stream playing when a user
@@ -360,20 +367,22 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
             fragmentIsVisible = true;
             player.useVideoAndSubtitles(true);
 
-            // When a user returns from background, the system UI will always be shown even if
+            // When a user returns from background, the system UI will always be shown even
+            // if
             // controls are invisible: hide it in that case
             if (!isControlsVisible()) {
                 hideSystemUIIfNeeded();
             }
         }
     }
-    //endregion
+    // endregion
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Fragment binding
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Fragment binding
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Fragment binding
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Fragment binding
 
     @Override
     public void onFragmentListenerSet() {
@@ -389,7 +398,8 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
     }
 
     /**
-     * This will be called when a user goes to another app/activity, turns off a screen.
+     * This will be called when a user goes to another app/activity, turns off a
+     * screen.
      * We don't want to interrupt playback and don't want to see notification so
      * next lines of code will enable audio-only playback only if needed
      */
@@ -405,24 +415,26 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
                         NavigationHelper.playOnPopupPlayer(activity, player.getPlayQueue(), true);
                     });
                     break;
-                case MINIMIZE_ON_EXIT_MODE_NONE: default:
+                case MINIMIZE_ON_EXIT_MODE_NONE:
+                default:
                     player.pause();
                     break;
             }
         }
     }
-    //endregion
+    // endregion
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Playback states
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Playback states
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Playback states
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Playback states
 
     @Override
     public void onUpdateProgress(final int currentProgress,
-                                 final int duration,
-                                 final int bufferPercent) {
+            final int duration,
+            final int bufferPercent) {
         super.onUpdateProgress(currentProgress, duration, bufferPercent);
 
         if (areSegmentsVisible) {
@@ -446,18 +458,20 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
             toggleFullscreen();
         }
     }
-    //endregion
+    // endregion
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Controls showing / hiding
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Controls showing / hiding
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Controls showing / hiding
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Controls showing / hiding
 
     @Override
     protected void showOrHideButtons() {
         super.showOrHideButtons();
-        @Nullable final PlayQueue playQueue = player.getPlayQueue();
+        @Nullable
+        final PlayQueue playQueue = player.getPlayQueue();
         if (playQueue == null) {
             return;
         }
@@ -466,7 +480,7 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         final boolean showSegment = !player.getCurrentStreamInfo()
                 .map(StreamInfo::getStreamSegments)
                 .map(List::isEmpty)
-                .orElse(/*no stream info=*/true);
+                .orElse(/* no stream info= */true);
 
         binding.queueButton.setVisibility(showQueue ? View.VISIBLE : View.GONE);
         binding.queueButton.setAlpha(showQueue ? 1.0f : 0.0f);
@@ -501,15 +515,19 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
      * The calculating follows these rules:
      * <ul>
      * <li>
-     *     Show at least stream title and content creator on TVs and tablets when in landscape
-     *     (always the case for TVs) and not in fullscreen mode. This requires to have at least
-     *     {@link #DETAIL_ROOT_MINIMUM_HEIGHT} free space for {@link R.id.detail_root} and
-     *     additional space for the stream title text size ({@link R.id.detail_title_root_layout}).
-     *     The text size is {@link #DETAIL_TITLE_TEXT_SIZE_TABLET} on tablets and
-     *     {@link #DETAIL_TITLE_TEXT_SIZE_TV} on TVs, see {@link R.id.titleTextView}.
+     * Show at least stream title and content creator on TVs and tablets when in
+     * landscape
+     * (always the case for TVs) and not in fullscreen mode. This requires to have
+     * at least
+     * {@link #DETAIL_ROOT_MINIMUM_HEIGHT} free space for {@link R.id.detail_root}
+     * and
+     * additional space for the stream title text size
+     * ({@link R.id.detail_title_root_layout}).
+     * The text size is {@link #DETAIL_TITLE_TEXT_SIZE_TABLET} on tablets and
+     * {@link #DETAIL_TITLE_TEXT_SIZE_TV} on TVs, see {@link R.id.titleTextView}.
      * </li>
      * <li>
-     *     Otherwise, the max thumbnail height is the screen height.
+     * Otherwise, the max thumbnail height is the screen height.
      * </li>
      * </ul>
      *
@@ -534,40 +552,47 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
     }
 
     private void showHideKodiButton() {
-        // show kodi button if it supports the current service and it is enabled in settings
-        @Nullable final PlayQueue playQueue = player.getPlayQueue();
+        // show kodi button if it supports the current service and it is enabled in
+        // settings
+        @Nullable
+        final PlayQueue playQueue = player.getPlayQueue();
         binding.playWithKodi.setVisibility(playQueue != null && playQueue.getItem() != null
                 && KoreUtils.shouldShowPlayWithKodi(context, playQueue.getItem().getServiceId())
-                ? View.VISIBLE : View.GONE);
+                        ? View.VISIBLE
+                        : View.GONE);
     }
-    //endregion
+    // endregion
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Captions (text tracks)
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Captions (text tracks)
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Captions (text tracks)
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Captions (text tracks)
 
     @Override
     protected void setupSubtitleView(final float captionScale) {
         binding.subtitleView.setFractionalTextSize(
                 SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * captionScale);
     }
-    //endregion
+    // endregion
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Gestures
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Gestures
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Gestures
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Gestures
 
     @SuppressWarnings("checkstyle:ParameterNumber")
     @Override
     public void onLayoutChange(final View view, final int l, final int t, final int r, final int b,
-                               final int ol, final int ot, final int or, final int ob) {
+            final int ol, final int ot, final int or, final int ob) {
         if (l != ol || t != ot || r != or || b != ob) {
-            // Use a smaller value to be consistent across screen orientations, and to make usage
-            // easier. Multiply by 3/4 to ensure the user does not need to move the finger up to the
+            // Use a smaller value to be consistent across screen orientations, and to make
+            // usage
+            // easier. Multiply by 3/4 to ensure the user does not need to move the finger
+            // up to the
             // screen border, in order to reach the maximum volume/brightness.
             final int width = r - l;
             final int height = b - t;
@@ -582,8 +607,7 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
             binding.brightnessProgressBar.setMax(maxGestureLength);
 
             setInitialGestureValues();
-            binding.itemsListPanel.getLayoutParams().height =
-                    height - binding.itemsListPanel.getTop();
+            binding.itemsListPanel.getLayoutParams().height = height - binding.itemsListPanel.getTop();
         }
     }
 
@@ -595,13 +619,14 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
                     (int) (binding.volumeProgressBar.getMax() * currentVolumeNormalized));
         }
     }
-    //endregion
+    // endregion
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Play queue, segments and streams
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Play queue, segments and streams
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Play queue, segments and streams
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Play queue, segments and streams
 
     @Override
     public void onMetadataChanged(@NonNull final StreamInfo info) {
@@ -642,7 +667,8 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         animate(binding.itemsListPanel, true, DEFAULT_CONTROLS_DURATION,
                 AnimationType.SLIDE_AND_ALPHA);
 
-        @Nullable final PlayQueue playQueue = player.getPlayQueue();
+        @Nullable
+        final PlayQueue playQueue = player.getPlayQueue();
         if (playQueue != null) {
             binding.itemsList.scrollToPosition(playQueue.getIndex());
         }
@@ -718,10 +744,10 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
 
             animate(binding.itemsListPanel, false, DEFAULT_CONTROLS_DURATION,
                     AnimationType.SLIDE_AND_ALPHA, 0, () ->
-                        // Even when queueLayout is GONE it receives touch events
-                        // and ruins normal behavior of the app. This line fixes it
-                        binding.itemsListPanel.setTranslationY(
-                                -binding.itemsListPanel.getHeight() * 5.0f));
+                    // Even when queueLayout is GONE it receives touch events
+                    // and ruins normal behavior of the app. This line fixes it
+                    binding.itemsListPanel.setTranslationY(
+                            -binding.itemsListPanel.getHeight() * 5.0f));
 
             // clear focus, otherwise a white rectangle remains on top of the player
             binding.itemsListClose.clearFocus();
@@ -733,7 +759,8 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         return new OnScrollBelowItemsListener() {
             @Override
             public void onScrolledDown(final RecyclerView recyclerView) {
-                @Nullable final PlayQueue playQueue = player.getPlayQueue();
+                @Nullable
+                final PlayQueue playQueue = player.getPlayQueue();
                 if (playQueue != null && !playQueue.isComplete()) {
                     playQueue.fetch();
                 } else if (binding != null) {
@@ -754,7 +781,8 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
 
             @Override
             public void onItemLongClick(@NonNull final StreamSegmentItem item, final int seconds) {
-                @Nullable final MediaItemTag currentMetadata = player.getCurrentMetadata();
+                @Nullable
+                final MediaItemTag currentMetadata = player.getCurrentMetadata();
                 if (currentMetadata == null
                         || currentMetadata.getServiceId() != YouTube.getServiceId()) {
                     return;
@@ -790,7 +818,8 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         return new PlayQueueItemTouchCallback() {
             @Override
             public void onMove(final int sourceIndex, final int targetIndex) {
-                @Nullable final PlayQueue playQueue = player.getPlayQueue();
+                @Nullable
+                final PlayQueue playQueue = player.getPlayQueue();
                 if (playQueue != null) {
                     playQueue.move(sourceIndex, targetIndex);
                 }
@@ -798,7 +827,8 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
 
             @Override
             public void onSwiped(final int index) {
-                @Nullable final PlayQueue playQueue = player.getPlayQueue();
+                @Nullable
+                final PlayQueue playQueue = player.getPlayQueue();
                 if (playQueue != null && index != -1) {
                     playQueue.remove(index);
                 }
@@ -815,8 +845,10 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
 
             @Override
             public void held(final PlayQueueItem item, final View view) {
-                @Nullable final PlayQueue playQueue = player.getPlayQueue();
-                @Nullable final AppCompatActivity parentActivity = getParentActivity().orElse(null);
+                @Nullable
+                final PlayQueue playQueue = player.getPlayQueue();
+                @Nullable
+                final AppCompatActivity parentActivity = getParentActivity().orElse(null);
                 if (playQueue != null && parentActivity != null && playQueue.indexOf(item) != -1) {
                     openPopupMenu(player.getPlayQueue(), item, view, true,
                             parentActivity.getSupportFragmentManager(), context);
@@ -833,7 +865,8 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
     }
 
     private void updateQueueTime(final int currentTime) {
-        @Nullable final PlayQueue playQueue = player.getPlayQueue();
+        @Nullable
+        final PlayQueue playQueue = player.getPlayQueue();
         if (playQueue == null) {
             return;
         }
@@ -850,8 +883,7 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         binding.itemsListHeaderDuration.setText(
                 String.format("%s/%s",
                         getTimeString(currentTime + before),
-                        getTimeString(before + after)
-                ));
+                        getTimeString(before + after)));
     }
 
     @Override
@@ -868,21 +900,21 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         return isVerticalVideo;
     }
 
-    //endregion
+    // endregion
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Click listeners
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Click listeners
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Click listeners
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Click listeners
 
     @Override
     protected void onPlaybackSpeedClicked() {
-        getParentActivity().ifPresent(activity ->
-                PlaybackParameterDialog.newInstance(player.getPlaybackSpeed(),
-                                player.getPlaybackPitch(), player.getPlaybackSkipSilence(),
-                                player::setPlaybackParameters)
-                        .show(activity.getSupportFragmentManager(), null));
+        getParentActivity().ifPresent(activity -> PlaybackParameterDialog.newInstance(player.getPlaybackSpeed(),
+                player.getPlaybackPitch(), player.getPlaybackSkipSilence(),
+                player::setPlaybackParameters)
+                .show(activity.getSupportFragmentManager(), null));
     }
 
     @Override
@@ -896,18 +928,20 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         }
         return super.onKeyDown(keyCode);
     }
-    //endregion
+    // endregion
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Video size, orientation, fullscreen
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Video size, orientation, fullscreen
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Video size, orientation, fullscreen
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Video size, orientation, fullscreen
 
     private void setupScreenRotationButton() {
         binding.screenRotationButton.setVisibility(globalScreenOrientationLocked(context)
                 || isVerticalVideo || DeviceUtils.isTablet(context)
-                ? View.VISIBLE : View.GONE);
+                        ? View.VISIBLE
+                        : View.GONE);
         binding.screenRotationButton.setImageDrawable(AppCompatResources.getDrawable(context,
                 isFullscreen ? R.drawable.ic_fullscreen_exit
                         : R.drawable.ic_fullscreen));
@@ -973,13 +1007,14 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
             toggleFullscreen();
         }
     }
-    //endregion
+    // endregion
 
-
-    /*//////////////////////////////////////////////////////////////////////////
-    // Getters
-    //////////////////////////////////////////////////////////////////////////*/
-    //region Getters
+    /*
+     * //////////////////////////////////////////////////////////////////////////
+     * // Getters
+     * //////////////////////////////////////////////////////////////////////////
+     */
+    // region Getters
 
     private Optional<Context> getParentContext() {
         return Optional.ofNullable(binding.getRoot().getParent())
@@ -998,5 +1033,5 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         // while DisplayMetrics from app context doesn't
         return DeviceUtils.isLandscape(getParentContext().orElse(player.getService()));
     }
-    //endregion
+    // endregion
 }
