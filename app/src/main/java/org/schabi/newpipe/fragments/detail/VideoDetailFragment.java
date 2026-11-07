@@ -1944,6 +1944,11 @@ public final class VideoDetailFragment
             // Properly exit from fullscreen
             toggleFullscreenIfInFullscreenMode();
             hideMainPlayerOnLoadingNewStream();
+
+            // Show the specific error in-app (e.g. age restricted) instead of relying only
+            // on the silent error notification, and offer "Open in browser" for the stream.
+            showError(new ErrorInfo(error, UserAction.PLAY_STREAM,
+                    url == null ? "no url" : url, serviceId, url));
         }
     }
 

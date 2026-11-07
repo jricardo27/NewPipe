@@ -470,24 +470,28 @@ public class MediaSourceManager {
                                     new MediaSourceResolutionException(message));
                         }))
                 .onErrorReturn(throwable -> {
-                    if (stream == playQueue.getItem() && playQueue.size() > 1) {
-                        if (DEBUG) {
-                            Log.d(TAG,
-                                    "MediaSource - Extraction failed for current item, skipping: " + stream.getTitle(),
-                                    throwable);
-                        }
-                        AndroidSchedulers.mainThread().scheduleDirect(playQueue::error);
+                    if (throwable instanceof ContentNotAvailableException) {
+                        // Content is surely not available (e.g. age restricted): propagating the
+                        // error lets the player skip it once via onPlayerError(). Scheduling a
+                        // playQueue.error() here too would skip the next item twice.
+                        return FailedMediaSource.of(stream, new Exception(throwable),
+                                TimeUnit.MILLISECONDS.convert(3, TimeUnit.SECONDS));
                     }
-
                     if (throwable instanceof ExtractionException) {
-                        if (throwable instanceof ContentNotAvailableException) {
-                            return FailedMediaSource.of(stream, new Exception(throwable),
-                                    TimeUnit.MILLISECONDS.convert(3, TimeUnit.SECONDS));
+                        // FailedMediaSourceException errors are swallowed into a silent source:
+                        // skip the current item immediately instead of waiting for the silence.
+                        if (stream == playQueue.getItem() && playQueue.size() > 1) {
+                            if (DEBUG) {
+                                Log.d(TAG,
+                                        "MediaSource - Extraction failed for current item, skipping: " + stream.getTitle(),
+                                        throwable);
+                            }
+                            AndroidSchedulers.mainThread().scheduleDirect(playQueue::error);
                         }
                         return FailedMediaSource.of(stream, new StreamInfoLoadException(throwable));
                     }
-                    // Non-source related error expected here (e.g. network),
-                    // should allow retry shortly after the error.
+                    // Non-source related error expected here (e.g. network), propagates to the
+                    // player which skips or retries from onPlayerError().
                     final long allowRetryIn = TimeUnit.MILLISECONDS.convert(3,
                             TimeUnit.SECONDS);
                     return FailedMediaSource.of(stream, new Exception(throwable), allowRetryIn);
