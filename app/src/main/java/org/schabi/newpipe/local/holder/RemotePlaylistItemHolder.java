@@ -3,6 +3,7 @@ package org.schabi.newpipe.local.holder;
 import android.text.TextUtils;
 import android.view.ViewGroup;
 
+import org.schabi.newpipe.R;
 import org.schabi.newpipe.database.LocalItem;
 import org.schabi.newpipe.database.playlist.model.PlaylistRemoteEntity;
 import org.schabi.newpipe.local.LocalItemBuilder;
@@ -39,7 +40,9 @@ public class RemotePlaylistItemHolder extends PlaylistItemHolder {
 
         if (totalCount != null) {
             if (unwatchedCount != null && unwatchedCount > 0 && unwatchedCount < totalCount) {
-                itemStreamCountView.setText(unwatchedCount + " / " + totalCount);
+                itemStreamCountView.setText(itemStreamCountView.getContext()
+                        .getString(R.string.playlist_unwatched_count_format,
+                                unwatchedCount, totalCount));
             } else {
                 itemStreamCountView.setText(Localization.localizeStreamCountMini(
                         itemStreamCountView.getContext(), totalCount));

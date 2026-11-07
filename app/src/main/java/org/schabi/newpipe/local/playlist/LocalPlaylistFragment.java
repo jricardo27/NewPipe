@@ -111,8 +111,13 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     private LocalPlaylistHeaderBinding headerBinding;
     private PlaylistControlBinding playlistControlBinding;
 
+    private static final int TAB_ALL = 0;
+    private static final int TAB_UNWATCHED = 1;
+    private static final int TAB_WATCHED = 2;
+
     private List<PlaylistStreamEntry> allItems = new ArrayList<>();
-    private int currentTab = 0; // 0: Unwatched, 1: Watched
+    private Map<Long, StreamStateEntity> streamStates = new HashMap<>();
+    private int currentTab = TAB_ALL;
 
     private ItemTouchHelper itemTouchHelper;
 
@@ -175,6 +180,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                 this::exportPlaylistToUri);
     }
 
+    private static String sanitizeFileName(final String fileName) {
+        return fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
+    }
+
     private void exportPlaylistToUri(final android.net.Uri uri) {
         if (uri == null) {
             return;
@@ -184,27 +193,31 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         disposables.add(playlistManager.getPlaylistStreams(playlistId)
                 .firstElement()
                 .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(streams -> {
-                    try {
-                        java.io.OutputStream os = context.getContentResolver().openOutputStream(uri);
+                .flatMapSingle(streams -> Single.fromCallable(() -> {
+                    try (java.io.OutputStream os = context.getContentResolver()
+                            .openOutputStream(uri)) {
                         if (os == null) {
                             throw new java.io.IOException("Could not open output stream");
                         }
                         // Convert PlaylistStreamEntry to StreamExportEntry
-                        final List<PlaylistImportExportJsonHelper.StreamExportEntry> exportEntries = new ArrayList<>();
+                        final List<PlaylistImportExportJsonHelper.StreamExportEntry> exportEntries =
+                                new ArrayList<>();
                         for (final var entry : streams) {
                             exportEntries.add(new PlaylistImportExportJsonHelper.StreamExportEntry(
                                     entry.getStreamEntity(), entry.getProgressMillis()));
                         }
-                        PlaylistImportExportJsonHelper.PlaylistWithStreams playlist = new PlaylistImportExportJsonHelper.PlaylistWithStreams(
-                                name, exportEntries);
-                        PlaylistImportExportJsonHelper.writeTo(Collections.singletonList(playlist), os);
-                        Toast.makeText(context, R.string.export_complete_toast, Toast.LENGTH_SHORT).show();
-                    } catch (Exception e) {
-                        showUiErrorSnackbar(this, "Exporting playlist", e);
+                        final PlaylistImportExportJsonHelper.PlaylistWithStreams playlist =
+                                new PlaylistImportExportJsonHelper.PlaylistWithStreams(
+                                        name, exportEntries);
+                        PlaylistImportExportJsonHelper.writeTo(Collections.singletonList(playlist),
+                                os);
                     }
-                }, throwable -> showUiErrorSnackbar(this, "Exporting playlist", throwable)));
+                    return true;
+                }))
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(done -> Toast.makeText(context, R.string.export_complete_toast,
+                                Toast.LENGTH_SHORT).show(),
+                        throwable -> showUiErrorSnackbar(this, "Exporting playlist", throwable)));
     }
 
     @Override
@@ -248,25 +261,29 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
     private void setupTabs() {
         if (headerBinding.playlistTabs.getTabCount() == 0) {
-            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab().setText(R.string.unwatched));
-            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab().setText(R.string.fully_watched));
+            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab()
+                    .setText(R.string.all));
+            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab()
+                    .setText(R.string.unwatched));
+            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab()
+                    .setText(R.string.fully_watched));
+
+            headerBinding.playlistTabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+                @Override
+                public void onTabSelected(TabLayout.Tab tab) {
+                    currentTab = tab.getPosition();
+                    filterItems();
+                }
+
+                @Override
+                public void onTabUnselected(TabLayout.Tab tab) {
+                }
+
+                @Override
+                public void onTabReselected(TabLayout.Tab tab) {
+                }
+            });
         }
-
-        headerBinding.playlistTabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                currentTab = tab.getPosition();
-                filterItems();
-            }
-
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {
-            }
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {
-            }
-        });
     }
 
     @Override
@@ -470,7 +487,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         } else if (item.getItemId() == R.id.menu_item_sort_playlist) {
             openSortDialog();
         } else if (item.getItemId() == R.id.menu_item_export_playlist_json) {
-            createDocumentLauncher.launch(name + ".json");
+            createDocumentLauncher.launch(sanitizeFileName(name) + ".json");
         } else if (item.getItemId() == R.id.menu_item_split_playlist) {
             showSplitPlaylistDialog();
         } else {
@@ -540,7 +557,14 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(states -> {
-                    this.streamStates = states;
+                    final Map<Long, StreamStateEntity> statesMap = new HashMap<>();
+                    for (int i = 0; i < result.size() && i < states.size(); i++) {
+                        final StreamStateEntity state = states.get(i);
+                        if (state != null) {
+                            statesMap.put(result.get(i).getStreamId(), state);
+                        }
+                    }
+                    this.streamStates = statesMap;
                     updateTabTitles();
                     filterItems();
                     if (itemsListState != null) {
@@ -556,53 +580,52 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         PlayButtonHelper.initPlaylistControlClickListener(activity, playlistControlBinding, this);
     }
 
-    private List<StreamStateEntity> streamStates = new ArrayList<>();
+    private boolean isWatched(final PlaylistStreamEntry entry) {
+        final StreamStateEntity state = streamStates.get(entry.getStreamId());
+        return state != null && state.isFinished(entry.getStreamEntity().getDuration());
+    }
 
     private void updateTabTitles() {
-        if (headerBinding == null || allItems == null || streamStates == null)
+        if (headerBinding == null || allItems == null) {
             return;
+        }
 
         int unwatchedCount = 0;
         int watchedCount = 0;
 
-        for (int i = 0; i < allItems.size(); i++) {
-            PlaylistStreamEntry entry = allItems.get(i);
-            StreamStateEntity state = (i < streamStates.size()) ? streamStates.get(i) : null;
-            boolean isFinished = state != null && state.isFinished(entry.toStreamInfoItem().getDuration());
-            if (isFinished) {
+        for (final PlaylistStreamEntry entry : allItems) {
+            if (isWatched(entry)) {
                 watchedCount++;
             } else {
                 unwatchedCount++;
             }
         }
 
-        TabLayout.Tab unwatchedTab = headerBinding.playlistTabs.getTabAt(0);
+        final TabLayout.Tab allTab = headerBinding.playlistTabs.getTabAt(TAB_ALL);
+        if (allTab != null) {
+            allTab.setText(getString(R.string.all) + " (" + allItems.size() + ")");
+        }
+
+        final TabLayout.Tab unwatchedTab = headerBinding.playlistTabs.getTabAt(TAB_UNWATCHED);
         if (unwatchedTab != null) {
             unwatchedTab.setText(getString(R.string.unwatched) + " (" + unwatchedCount + ")");
         }
 
-        TabLayout.Tab watchedTab = headerBinding.playlistTabs.getTabAt(1);
+        final TabLayout.Tab watchedTab = headerBinding.playlistTabs.getTabAt(TAB_WATCHED);
         if (watchedTab != null) {
             watchedTab.setText(getString(R.string.fully_watched) + " (" + watchedCount + ")");
         }
     }
 
     private void filterItems() {
-        if (itemListAdapter == null || allItems == null)
+        if (itemListAdapter == null || allItems == null) {
             return;
+        }
 
-        List<PlaylistStreamEntry> filtered = new ArrayList<>();
-        for (int i = 0; i < allItems.size(); i++) {
-            PlaylistStreamEntry entry = allItems.get(i);
-            StreamStateEntity state = (i < streamStates.size()) ? streamStates.get(i) : null;
-            boolean isFinished = state != null && state.isFinished(entry.toStreamInfoItem().getDuration());
-
-            if (currentTab == 0) { // Unwatched
-                if (!isFinished)
-                    filtered.add(entry);
-            } else { // Watched
-                if (isFinished)
-                    filtered.add(entry);
+        final List<PlaylistStreamEntry> filtered = new ArrayList<>();
+        for (final PlaylistStreamEntry entry : allItems) {
+            if (currentTab == TAB_ALL || isWatched(entry) == (currentTab == TAB_WATCHED)) {
+                filtered.add(entry);
             }
         }
 
@@ -614,6 +637,27 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             showEmptyState();
         } else if (emptyStateView != null) {
             animate(emptyStateView, false, 150);
+        }
+    }
+
+    /**
+     * Reorders {@link #allItems} so that the entries visible under the current
+     * filter follow the adapter's order, leaving all other entries in place.
+     */
+    private void applyFilteredOrderToAllItems() {
+        final List<PlaylistStreamEntry> visible = new ArrayList<>();
+        for (final LocalItem item : itemListAdapter.getItemsList()) {
+            if (item instanceof PlaylistStreamEntry) {
+                visible.add((PlaylistStreamEntry) item);
+            }
+        }
+
+        int next = 0;
+        for (int i = 0; i < allItems.size() && next < visible.size(); i++) {
+            final PlaylistStreamEntry entry = allItems.get(i);
+            if (currentTab == TAB_ALL || isWatched(entry) == (currentTab == TAB_WATCHED)) {
+                allItems.set(i, visible.get(next++));
+            }
         }
     }
 
@@ -709,9 +753,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
         final long thumbnailStreamId;
 
-        if (!itemListAdapter.getItemsList().isEmpty()) {
-            thumbnailStreamId = ((PlaylistStreamEntry) itemListAdapter.getItemsList().get(0))
-                    .getStreamEntity().getUid();
+        if (!allItems.isEmpty()) {
+            thumbnailStreamId = allItems.get(0).getStreamEntity().getUid();
         } else {
             thumbnailStreamId = PlaylistEntity.DEFAULT_THUMBNAIL_ID;
         }
@@ -738,6 +781,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         }
 
         itemListAdapter.removeItem(item);
+        allItems.remove(item);
         if (playlistManager.getPlaylistThumbnailStreamId(playlistId) == item.getStreamId()) {
             updateThumbnailUrl();
         }
@@ -768,12 +812,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             return;
         }
 
-        final List<LocalItem> items = itemListAdapter.getItemsList();
-        final List<Long> streamIds = new ArrayList<>(items.size());
-        for (final LocalItem item : items) {
-            if (item instanceof PlaylistStreamEntry entry) {
-                streamIds.add(entry.getStreamId());
-            }
+        // Save the full playlist, not just the filtered subset currently shown.
+        final List<Long> streamIds = new ArrayList<>(allItems.size());
+        for (final PlaylistStreamEntry entry : allItems) {
+            streamIds.add(entry.getStreamId());
         }
 
         if (DEBUG) {
@@ -827,6 +869,13 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                 final int targetIndex = target.getBindingAdapterPosition();
                 final boolean isSwapped = itemListAdapter.swapItems(sourceIndex, targetIndex);
                 if (isSwapped) {
+                    if (currentTab == TAB_ALL) {
+                        if (sourceIndex < allItems.size() && targetIndex < allItems.size()) {
+                            Collections.swap(allItems, sourceIndex, targetIndex);
+                        }
+                    } else {
+                        applyFilteredOrderToAllItems();
+                    }
                     debounceSaver.setHasChangesToSave();
                 }
                 return isSwapped;
@@ -919,25 +968,13 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     }
 
     private void sortPlaylist(final Comparator<PlaylistStreamEntry> comparator) {
-        if (itemListAdapter == null) {
-            return;
-        }
-        final List<LocalItem> items = itemListAdapter.getItemsList();
-        final List<PlaylistStreamEntry> streamEntries = new ArrayList<>();
-        for (final LocalItem item : items) {
-            if (item instanceof PlaylistStreamEntry) {
-                streamEntries.add((PlaylistStreamEntry) item);
-            }
-        }
-
-        if (streamEntries.isEmpty()) {
+        if (allItems == null || allItems.isEmpty()) {
             return;
         }
 
-        Collections.sort(streamEntries, comparator);
-
-        itemListAdapter.clearStreamItemList();
-        itemListAdapter.addItems(streamEntries);
+        // Sort the full playlist so no entries are lost when a filter is active.
+        allItems.sort(comparator);
+        filterItems();
 
         debounceSaver.setHasChangesToSave();
         saveImmediate();
@@ -1119,12 +1156,15 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                 .setPositiveButton(R.string.ok, (dialog, which) -> {
                     final int criteria = binding.splitCriteriaSpinner.getSelectedItemPosition();
                     int maxVideos = 1000;
-                    try {
-                        final String maxText = binding.splitMaxVideos.getText().toString();
-                        if (!TextUtils.isEmpty(maxText)) {
+                    final String maxText = binding.splitMaxVideos.getText().toString().trim();
+                    if (!maxText.isEmpty()) {
+                        try {
                             maxVideos = Integer.parseInt(maxText);
+                        } catch (final NumberFormatException e) {
+                            Toast.makeText(requireContext(), R.string.split_invalid_max_videos,
+                                    Toast.LENGTH_SHORT).show();
+                            return;
                         }
-                    } catch (NumberFormatException ignored) {
                     }
                     splitPlaylist(criteria, maxVideos);
                 })

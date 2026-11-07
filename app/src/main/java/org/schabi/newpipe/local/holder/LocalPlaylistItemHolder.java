@@ -3,6 +3,7 @@ package org.schabi.newpipe.local.holder;
 import android.view.View;
 import android.view.ViewGroup;
 
+import org.schabi.newpipe.R;
 import org.schabi.newpipe.database.LocalItem;
 import org.schabi.newpipe.database.playlist.PlaylistDuplicatesEntry;
 import org.schabi.newpipe.database.playlist.PlaylistMetadataEntry;
@@ -39,7 +40,8 @@ public class LocalPlaylistItemHolder extends PlaylistItemHolder {
         final Long unwatchedCount = item.getUnwatchedCount();
 
         if (unwatchedCount != null && unwatchedCount > 0 && unwatchedCount < totalCount) {
-            itemStreamCountView.setText(unwatchedCount + " / " + totalCount);
+            itemStreamCountView.setText(itemStreamCountView.getContext()
+                    .getString(R.string.playlist_unwatched_count_format, unwatchedCount, totalCount));
         } else {
             itemStreamCountView.setText(Localization.localizeStreamCountMini(
                     itemStreamCountView.getContext(), totalCount));

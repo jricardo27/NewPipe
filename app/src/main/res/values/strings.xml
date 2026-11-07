@@ -938,4 +938,11 @@
     <string name="split_playlist_success">Playlist split successfully</string>
     <string name="split_by_count">Number of videos</string>
     <string name="split_playlist_max_videos">Max videos per playlist</string>
+    <string name="split_invalid_max_videos">Invalid maximum video count</string>
+    <string name="no_playlists_found_in_file">No playlists found in file</string>
+    <plurals name="imported_playlists">
+        <item quantity="one">Imported %d playlist</item>
+        <item quantity="other">Imported %d playlists</item>
+    </plurals>
+    <string name="playlist_unwatched_count_format">%1$d / %2$d</string>
 </resources>

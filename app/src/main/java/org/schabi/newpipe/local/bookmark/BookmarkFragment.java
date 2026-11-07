@@ -126,58 +126,89 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
         if (localPlaylistManager != null) {
             disposables.add(localPlaylistManager.getAllPlaylistsWithStreams()
                     .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(playlists -> {
-                        try {
-                            java.io.OutputStream os = activity.getContentResolver().openOutputStream(uri);
+                    .flatMap(playlists -> io.reactivex.rxjava3.core.Single.fromCallable(() -> {
+                        try (java.io.OutputStream os = activity.getContentResolver()
+                                .openOutputStream(uri)) {
                             if (os == null) {
                                 throw new java.io.IOException("Could not open output stream");
                             }
                             PlaylistImportExportJsonHelper.writeTo(playlists, os);
-                            Toast.makeText(activity, R.string.export_complete_toast, Toast.LENGTH_SHORT).show();
-                        } catch (Exception e) {
-                            org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(this, "Exporting playlists", e);
                         }
-                    }, throwable -> org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(this, "Exporting playlists",
-                            throwable)));
+                        return true;
+                    }))
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(done -> Toast.makeText(activity, R.string.export_complete_toast,
+                                    Toast.LENGTH_SHORT).show(),
+                            throwable -> org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(
+                                    this, "Exporting playlists", throwable)));
         }
     }
 
+    private static String uniquePlaylistName(final String name,
+            final java.util.Set<String> usedNames) {
+        if (usedNames.add(name)) {
+            return name;
+        }
+        int counter = 2;
+        while (usedNames.contains(name + " (" + counter + ")")) {
+            counter++;
+        }
+        final String unique = name + " (" + counter + ")";
+        usedNames.add(unique);
+        return unique;
+    }
+
     private void importPlaylistsFromUri(final Uri uri) {
-        if (uri == null) {
+        if (uri == null || localPlaylistManager == null) {
             return;
         }
 
-        try {
-            java.io.InputStream is = activity.getContentResolver().openInputStream(uri);
-            List<PlaylistImportExportJsonHelper.PlaylistWithStreams> playlists = PlaylistImportExportJsonHelper
-                    .readFrom(is);
-
-            if (playlists == null || playlists.isEmpty()) {
-                Toast.makeText(activity, "No playlists found in file", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            // Import playslists
-            if (localPlaylistManager != null) {
-                // We chain imports
-                io.reactivex.rxjava3.core.Observable.fromIterable(playlists)
-                        .concatMapMaybe(
-                                playlist -> localPlaylistManager
-                                        .createPlaylistWithStates(playlist.name, playlist.streams)
-                                        .map(ids -> playlist.name))
-                        .toList()
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(names -> {
-                            Toast.makeText(activity, "Imported " + names.size() + " playlists", Toast.LENGTH_SHORT)
-                                    .show();
-                        }, throwable -> org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(this,
-                                "Importing playlists", throwable));
-            }
-
-        } catch (Exception e) {
-            org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(this, "Importing playlists", e);
-        }
+        disposables.add(io.reactivex.rxjava3.core.Single.fromCallable(() -> {
+                    try (java.io.InputStream is = activity.getContentResolver()
+                            .openInputStream(uri)) {
+                        if (is == null) {
+                            throw new java.io.IOException("Could not open input stream");
+                        }
+                        final List<PlaylistImportExportJsonHelper.PlaylistWithStreams> playlists =
+                                PlaylistImportExportJsonHelper.readFrom(is);
+                        if (playlists == null) {
+                            return new ArrayList<PlaylistImportExportJsonHelper.PlaylistWithStreams>();
+                        }
+                        return playlists;
+                    }
+                })
+                .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                .flatMap(playlists -> localPlaylistManager.getPlaylists()
+                        .firstOrError()
+                        .map(existing -> {
+                            // Rename incoming playlists that collide with existing names
+                            final java.util.Set<String> usedNames = new java.util.HashSet<>();
+                            for (final PlaylistMetadataEntry entry : existing) {
+                                usedNames.add(entry.getOrderingName());
+                            }
+                            for (final PlaylistImportExportJsonHelper.PlaylistWithStreams playlist
+                                    : playlists) {
+                                playlist.name = uniquePlaylistName(playlist.name, usedNames);
+                            }
+                            return playlists;
+                        }))
+                .flatMap(playlists -> io.reactivex.rxjava3.core.Observable.fromIterable(playlists)
+                        .concatMapMaybe(playlist -> localPlaylistManager
+                                .createPlaylistWithStates(playlist.name, playlist.streams)
+                                .map(ids -> playlist.name))
+                        .toList())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(names -> {
+                    if (names.isEmpty()) {
+                        Toast.makeText(activity, R.string.no_playlists_found_in_file,
+                                Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(activity, activity.getResources().getQuantityString(
+                                        R.plurals.imported_playlists, names.size(), names.size()),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }, throwable -> org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar(this,
+                        "Importing playlists", throwable)));
     }
 
     @Nullable

@@ -95,9 +95,13 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
     private long streamCount;
     private long playlistOverallDurationSeconds;
     private boolean isDurationComplete = false;
+    private static final int TAB_ALL = 0;
+    private static final int TAB_UNWATCHED = 1;
+    private static final int TAB_WATCHED = 2;
+
     private List<StreamInfoItem> allItems = new ArrayList<>();
     private List<StreamStateEntity> streamStates = new ArrayList<>();
-    private int currentTab = 0; // 0: Unwatched, 1: Watched
+    private int currentTab = TAB_ALL;
 
     public static PlaylistFragment getInstance(final int serviceId, final String url,
             final String name) {
@@ -153,25 +157,29 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
 
     private void setupTabs() {
         if (headerBinding.playlistTabs.getTabCount() == 0) {
-            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab().setText(R.string.unwatched));
-            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab().setText(R.string.fully_watched));
+            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab()
+                    .setText(R.string.all));
+            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab()
+                    .setText(R.string.unwatched));
+            headerBinding.playlistTabs.addTab(headerBinding.playlistTabs.newTab()
+                    .setText(R.string.fully_watched));
+
+            headerBinding.playlistTabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+                @Override
+                public void onTabSelected(TabLayout.Tab tab) {
+                    currentTab = tab.getPosition();
+                    filterItems();
+                }
+
+                @Override
+                public void onTabUnselected(TabLayout.Tab tab) {
+                }
+
+                @Override
+                public void onTabReselected(TabLayout.Tab tab) {
+                }
+            });
         }
-
-        headerBinding.playlistTabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                currentTab = tab.getPosition();
-                filterItems();
-            }
-
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {
-            }
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {
-            }
-        });
     }
 
     @Override
@@ -468,12 +476,17 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
             }
         }
 
-        TabLayout.Tab unwatchedTab = headerBinding.playlistTabs.getTabAt(0);
+        TabLayout.Tab allTab = headerBinding.playlistTabs.getTabAt(TAB_ALL);
+        if (allTab != null) {
+            allTab.setText(getString(R.string.all) + " (" + allItems.size() + ")");
+        }
+
+        TabLayout.Tab unwatchedTab = headerBinding.playlistTabs.getTabAt(TAB_UNWATCHED);
         if (unwatchedTab != null) {
             unwatchedTab.setText(getString(R.string.unwatched) + " (" + unwatchedCount + ")");
         }
 
-        TabLayout.Tab watchedTab = headerBinding.playlistTabs.getTabAt(1);
+        TabLayout.Tab watchedTab = headerBinding.playlistTabs.getTabAt(TAB_WATCHED);
         if (watchedTab != null) {
             watchedTab.setText(getString(R.string.fully_watched) + " (" + watchedCount + ")");
         }
@@ -489,12 +502,8 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
             StreamStateEntity state = (i < streamStates.size()) ? streamStates.get(i) : null;
             boolean isFinished = state != null && state.isFinished(entry.getDuration());
 
-            if (currentTab == 0) { // Unwatched
-                if (!isFinished)
-                    filtered.add(entry);
-            } else { // Watched
-                if (isFinished)
-                    filtered.add(entry);
+            if (currentTab == TAB_ALL || isFinished == (currentTab == TAB_WATCHED)) {
+                filtered.add(entry);
             }
         }
 
